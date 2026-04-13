@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SignVue — Reconnaissance de la langue des signes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="logo" href="#accueil">
+                <span class="logo-text">signvue</span>
+                <svg class="logo-hands" width="36" height="28" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M8 4v8M8 12l-3 6M8 12l3 6M12 8v10M16 6v12M20 8v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                    <path d="M28 4v8M28 12l3 6M28 12l-3 6M24 8v10M20 6v12M16 8v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+            </a>
+
+            <nav class="nav-main" aria-label="Navigation principale">
+                <div class="nav-item-wrap">
+                    <button type="button" class="nav-item">Solutions <span class="chev" aria-hidden="true"></span></button>
+                </div>
+                <div class="nav-item-wrap">
+                    <button type="button" class="nav-item">Entreprise <span class="chev" aria-hidden="true"></span></button>
+                </div>
+                <div class="nav-item-wrap">
+                    <button type="button" class="nav-item">Ressources <span class="chev" aria-hidden="true"></span></button>
+                </div>
+            </nav>
+
+            <div class="header-ctas">
+                <a class="btn btn-primary js-demo-link btn-demo-locked" href="#demo" id="header-demo-link" title="Connexion requise">Essayer la démo <span class="btn-arrow" aria-hidden="true">→</span></a>
+                <button type="button" class="btn btn-outline js-open-auth" id="header-btn-auth">Se connecter</button>
+                <div class="header-user-bar is-hidden" id="header-user-bar">
+                    <div class="user-menu" id="user-menu">
+                        <button
+                            type="button"
+                            class="user-account-icon"
+                            id="user-account-btn"
+                            aria-expanded="false"
+                            aria-haspopup="true"
+                            aria-controls="user-account-panel"
+                            title="Afficher les informations du compte"
+                        >
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M5 20.5a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div
+                            class="user-account-panel"
+                            id="user-account-panel"
+                            role="region"
+                            aria-labelledby="user-panel-heading"
+                            hidden
+                        >
+                            <p class="user-account-panel-title" id="user-panel-heading">Mon compte</p>
+                            <dl class="user-account-details">
+                                <dt>E-mail</dt>
+                                <dd id="user-panel-email">—</dd>
+                                <dt>Statut</dt>
+                                <dd><span class="user-account-badge">Connecté</span></dd>
+                            </dl>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-compact" id="btn-logout">Déconnexion</button>
+                </div>
+            </div>
+            <button type="button" class="nav-toggle" aria-label="Ouvrir le menu" aria-expanded="false"></button>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero hero--accueil" id="accueil" aria-label="Accueil">
+            <div class="hero-photo" aria-hidden="true">
+                <img class="hero-photo-img" src="images/sign2.png" alt="" width="1200" height="800" loading="eager" fetchpriority="high" decoding="async" />
+            </div>
+            <div class="hero-bg" aria-hidden="true">
+                <span class="hero-orb hero-orb--1"></span>
+                <span class="hero-orb hero-orb--2"></span>
+            </div>
+            <div class="hero-scrim" aria-hidden="true"></div>
+            <div class="hero-inner hero-inner--accueil">
+                <div class="hero-copy anim-fade-up hero-copy--on-photo" style="--delay: 0.05s">
+                    <h1>Reconnaissance de la langue des signes en temps réel</h1>
+                    <p class="hero-lead">Traduisez instantanément vos signes en texte et en parole grâce à l’IA.</p>
+                    <div class="hero-widget">
+                        <span class="hero-dot" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 6v6M10 12l-2 4M10 12l2 4M13 9v7M16 7v9M19 9v7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M26 6v6M26 12l2 4M26 12l-2 4M23 9v7M20 7v9M17 9v7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                        </span>
+                        <span class="pill-strip" aria-label="Langues et lien vers notre histoire">
+                            <span class="pill-strip-prefix">LSF <span class="pill-sep">|</span> ASL</span>
+                            <a class="pill-strip-link" href="#fonctionnalites">Notre histoire →</a>
+                        </span>
+                    </div>
+                    <p class="hero-cta-row">
+                        <a class="btn btn-primary js-demo-link btn-demo-locked btn-on-photo-solid" href="#demo" title="Connexion requise">Essayer la démo <span class="btn-arrow" aria-hidden="true">→</span></a>
+                        <button type="button" class="btn btn-outline btn-on-photo js-open-auth">Se connecter</button>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="features" id="fonctionnalites">
+            <h2 class="section-title">Pourquoi SignVue</h2>
+            <div class="feature-grid">
+                <article
+                    class="feature-card feature-card--clickable"
+                    data-feature="1"
+                    data-reveal
+                    tabindex="0"
+                    role="button"
+                    aria-expanded="false"
+                    aria-controls="feature-detail"
+                >
+                    <div class="feature-card-thumb">
+                        <img src="images/sign3.png" alt="" width="480" height="300" loading="lazy" decoding="async" />
+                    </div>
+                    <h3>Reconnaissance en direct</h3>
+                    <p>Détection des gestes optimisée pour un usage conversationnel fluide.</p>
+                    <span class="feature-card-hint">Cliquer pour en savoir plus</span>
+                </article>
+                <article
+                    class="feature-card feature-card--clickable"
+                    data-feature="2"
+                    data-reveal
+                    tabindex="0"
+                    role="button"
+                    aria-expanded="false"
+                    aria-controls="feature-detail"
+                >
+                    <div class="feature-card-thumb">
+                        <img src="images/sign4.png" alt="" width="480" height="300" loading="lazy" decoding="async" />
+                    </div>
+                    <h3>Texte &amp; synthèse vocale</h3>
+                    <p>Affichage clair des mots reconnus, extensible vers la parole.</p>
+                    <span class="feature-card-hint">Cliquer pour en savoir plus</span>
+                </article>
+                <article
+                    class="feature-card feature-card--clickable"
+                    data-feature="3"
+                    data-reveal
+                    tabindex="0"
+                    role="button"
+                    aria-expanded="false"
+                    aria-controls="feature-detail"
+                >
+                    <div class="feature-card-thumb">
+                        <img src="images/sign5.png" alt="" width="480" height="300" loading="lazy" decoding="async" />
+                    </div>
+                    <h3>Respect de la vie privée</h3>
+                    <p>Traitement pensé pour limiter la conservation des flux vidéo.</p>
+                    <span class="feature-card-hint">Cliquer pour en savoir plus</span>
+                </article>
+            </div>
+
+            <div class="feature-detail" id="feature-detail" role="region" aria-labelledby="feature-detail-title" hidden>
+                <button type="button" class="feature-detail-close" id="feature-detail-close" aria-label="Fermer le détail">&times;</button>
+                <div class="feature-detail-inner">
+                    <div class="feature-detail-visual">
+                        <img id="feature-detail-img" src="" alt="" width="640" height="400" loading="lazy" decoding="async" />
+                    </div>
+                    <div class="feature-detail-copy">
+                        <h3 id="feature-detail-title"></h3>
+                        <div class="feature-detail-body" id="feature-detail-body"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-section" id="demo" aria-labelledby="demo-heading">
+            <div class="demo-inner">
+                <h2 id="demo-heading" class="section-title">Démo caméra</h2>
+                <p class="demo-lead" id="demo-lead-default">Connectez-vous pour activer la démo caméra et simuler la reconnaissance.</p>
+                <p class="demo-lead is-hidden" id="demo-lead-logged">Vous êtes connecté — lancez la caméra avec le bouton lecture.</p>
+                <div class="demo-layout">
+                    <div class="demo-video-panel">
+                        <div class="video-shell video-shell--demo">
+                            <video id="video" autoplay playsinline muted></video>
+                            <div class="video-placeholder video-placeholder--demo" id="video-placeholder">
+                                <p>Prêt pour la caméra</p>
+                                <span>Lancez la démo pour afficher le flux et l’analyse.</span>
+                            </div>
+                            <button type="button" class="play-fab" id="play-fab" aria-label="Démarrer la caméra">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="demo-result-panel" aria-live="polite">
+                        <span class="result-label">Interprétation</span>
+                        <p class="result-value" id="output">—</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cta-band" id="contact">
+            <div class="cta-glow" aria-hidden="true"></div>
+            <div class="cta-inner" data-reveal>
+                <h2>Communication sans obstacle</h2>
+                <p>Services d’interprétation assistée par IA, conçus pour compléter l’humain.</p>
+                <a class="btn btn-primary btn-on-dark js-demo-link btn-demo-locked" href="#demo" title="Connexion requise">Lancer la démo <span class="btn-arrow" aria-hidden="true">→</span></a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <p>© SignVue — Prototype de reconnaissance LSF</p>
+    </footer>
+
+    <div class="auth-modal" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title" hidden>
+        <div class="auth-modal-backdrop" id="auth-modal-backdrop" tabindex="-1"></div>
+        <div class="auth-dialog">
+            <button type="button" class="auth-close" id="auth-close" aria-label="Fermer la fenêtre">&times;</button>
+            <h2 id="auth-dialog-title">Connexion</h2>
+            <p class="auth-intro" id="auth-intro"></p>
+
+            <div class="auth-tabs" role="tablist">
+                <button type="button" class="auth-tab is-active" id="tab-login" role="tab" aria-selected="true">Se connecter</button>
+                <button type="button" class="auth-tab" id="tab-register" role="tab" aria-selected="false">Créer un compte</button>
+            </div>
+
+            <p class="auth-error" id="auth-error" role="alert" hidden></p>
+
+            <form class="auth-form" id="form-login" autocomplete="on">
+                <label class="auth-label" for="login-email">E-mail</label>
+                <input class="auth-input" type="email" id="login-email" name="email" required placeholder="vous@exemple.com" />
+                <label class="auth-label" for="login-password">Mot de passe</label>
+                <input class="auth-input" type="password" id="login-password" name="password" required minlength="6" placeholder="••••••••" />
+                <button type="submit" class="btn btn-primary auth-submit">Connexion</button>
+            </form>
+
+            <form class="auth-form is-hidden" id="form-register" autocomplete="on">
+                <label class="auth-label" for="reg-email">E-mail</label>
+                <input class="auth-input" type="email" id="reg-email" name="email" required placeholder="vous@exemple.com" />
+                <label class="auth-label" for="reg-password">Mot de passe</label>
+                <input class="auth-input" type="password" id="reg-password" name="password" required minlength="6" placeholder="Au moins 6 caractères" />
+                <label class="auth-label" for="reg-password2">Confirmer le mot de passe</label>
+                <input class="auth-input" type="password" id="reg-password2" name="password2" required minlength="6" placeholder="Répétez le mot de passe" />
+                <button type="submit" class="btn btn-primary auth-submit">Créer mon compte</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

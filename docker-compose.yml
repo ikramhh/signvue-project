@@ -1,0 +1,111 @@
+# SignVue — stack microservices (dev / démo multi-conteneurs)
+# Accès UI : http://localhost:9080
+# Traefik dashboard : http://localhost:9081
+# Consul UI : http://localhost:8500
+# RabbitMQ management : http://localhost:15672 (guest / guest)
+
+services:
+  traefik:
+    image: traefik:v2.10
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "9080:80"
+      - "9081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - signvue-net
+
+  consul:
+    image: hashicorp/consul:1.19
+    command: agent -dev -client=0.0.0.0 -ui
+    ports:
+      - "8500:8500"
+    networks:
+      - signvue-net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - signvue-net
+
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      PORT: "3001"
+      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
+      CONSUL_HOST: consul
+    networks:
+      - signvue-net
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=signvue-net
+      - traefik.http.routers.signvue-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)
+      - traefik.http.routers.signvue-auth.entrypoints=web
+      - traefik.http.routers.signvue-auth.priority=100
+      - traefik.http.middlewares.signvue-auth-strip.stripprefix.prefixes=/auth
+      - traefik.http.routers.signvue-auth.middlewares=signvue-auth-strip
+      - traefik.http.services.signvue-auth.loadbalancer.server.port=3001
+
+  api-service:
+    build: ./services/api-service
+    environment:
+      PORT: "3002"
+      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      CONSUL_HOST: consul
+    depends_on:
+      - rabbitmq
+      - auth-service
+    networks:
+      - signvue-net
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=signvue-net
+      - traefik.http.routers.signvue-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api`)
+      - traefik.http.routers.signvue-api.entrypoints=web
+      - traefik.http.routers.signvue-api.priority=90
+      - traefik.http.middlewares.signvue-api-strip.stripprefix.prefixes=/api
+      - traefik.http.routers.signvue-api.middlewares=signvue-api-strip
+      - traefik.http.services.signvue-api.loadbalancer.server.port=3002
+
+  worker-service:
+    build: ./services/worker-service
+    environment:
+      PORT: "3003"
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      CONSUL_HOST: consul
+    depends_on:
+      - rabbitmq
+    networks:
+      - signvue-net
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - signvue-net
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=signvue-net
+      - traefik.http.routers.signvue-web.rule=Host(`localhost`) || Host(`127.0.0.1`)
+      - traefik.http.routers.signvue-web.entrypoints=web
+      - traefik.http.routers.signvue-web.priority=1
+      - traefik.http.services.signvue-web.loadbalancer.server.port=80
+
+networks:
+  signvue-net:
+    name: signvue-net
