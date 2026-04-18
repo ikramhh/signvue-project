@@ -1,10 +1,11 @@
 /**
- * API métier SignVue — CRUD sessions d'interprétation + endpoint métier (file RabbitMQ).
+ * API métier SignVue — routes publiques (santé, enregistrement traductions), données en PostgreSQL.
  */
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const amqp = require("amqplib");
+const { pool, migrate, waitForDb } = require("./db");
 
 const PORT = Number(process.env.PORT) || 3002;
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
@@ -13,9 +14,6 @@ const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://guest:guest@localhost:5
 const QUEUE_NAME = "signvue.interpretation";
 const SERVICE_NAME = "api-service";
 const SERVICE_ID = `${SERVICE_NAME}-${process.env.HOSTNAME || "1"}`;
-
-/** @type {Map<string, { id: string, userId: string, title: string, notes: string, createdAt: string }>} */
-const sessions = new Map();
 
 let mqChannel = null;
 
@@ -41,6 +39,28 @@ function authMiddleware(req, res, next) {
     }
 }
 
+/** JWT optionnel : sans en-tête, accès anonyme ; avec Bearer, token doit être valide. */
+function optionalAuth(req, res, next) {
+    const h = req.headers.authorization;
+    if (!h?.startsWith("Bearer ")) {
+        req.user = null;
+        return next();
+    }
+    try {
+        req.user = jwt.verify(h.slice(7), JWT_SECRET);
+        next();
+    } catch {
+        res.status(401).json({ message: "Token invalide ou expiré." });
+    }
+}
+
+async function resolveUserId(req) {
+    if (!req.user) return null;
+    if (req.user.uid != null) return Number(req.user.uid);
+    const { rows } = await pool.query(`SELECT id FROM users WHERE email = $1`, [req.user.sub]);
+    return rows[0]?.id ?? null;
+}
+
 function requireAdmin(req, res, next) {
     if (req.user?.role !== "ADMIN") {
         return res.status(403).json({ message: "Réservé aux administrateurs." });
@@ -51,18 +71,97 @@ function requireAdmin(req, res, next) {
 const app = express();
 app.use(express.json());
 
-app.get("/health", (_req, res) => {
-    res.json({ status: "up", service: SERVICE_NAME, queue: QUEUE_NAME });
+app.get("/health", async (_req, res) => {
+    try {
+        await pool.query("SELECT 1");
+        res.json({ status: "up", service: SERVICE_NAME, queue: QUEUE_NAME, db: true });
+    } catch {
+        res.status(503).json({ status: "degraded", service: SERVICE_NAME, db: false });
+    }
 });
 
-app.get("/sessions", authMiddleware, (req, res) => {
+/** Public : enregistrer une traduction (liée au compte si JWT valide, sinon anonyme). */
+app.post("/translations", optionalAuth, async (req, res) => {
+    const { sourceText, targetText, langFrom, langTo } = req.body || {};
+    const userId = await resolveUserId(req);
+    const id = uuidv4();
+    await pool.query(
+        `INSERT INTO translations (id, user_id, source_text, target_text, lang_from, lang_to)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+            id,
+            userId,
+            String(sourceText || "").slice(0, 10000),
+            String(targetText || "").slice(0, 10000),
+            String(langFrom || "").slice(0, 32),
+            String(langTo || "").slice(0, 32),
+        ]
+    );
+    res.status(201).json({
+        id,
+        userId,
+        sourceText: String(sourceText || ""),
+        targetText: String(targetText || ""),
+        langFrom: String(langFrom || ""),
+        langTo: String(langTo || ""),
+        createdAt: new Date().toISOString(),
+    });
+});
+
+/** Historique : utilisateur connecté voit les siennes ; ADMIN voit tout. */
+app.get("/translations", authMiddleware, async (req, res) => {
+    const userId = await resolveUserId(req);
+    if (req.user.role === "ADMIN") {
+        const { rows } = await pool.query(
+            `SELECT t.id, t.user_id AS "userId", t.source_text AS "sourceText",
+                    t.target_text AS "targetText", t.lang_from AS "langFrom",
+                    t.lang_to AS "langTo", t.created_at AS "createdAt",
+                    u.email AS "userEmail"
+             FROM translations t
+             LEFT JOIN users u ON u.id = t.user_id
+             ORDER BY t.created_at DESC
+             LIMIT 500`
+        );
+        return res.json(rows);
+    }
+    if (!userId) {
+        return res.json([]);
+    }
+    const { rows } = await pool.query(
+        `SELECT id, user_id AS "userId", source_text AS "sourceText",
+                target_text AS "targetText", lang_from AS "langFrom",
+                lang_to AS "langTo", created_at AS "createdAt"
+         FROM translations
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 500`,
+        [userId]
+    );
+    res.json(rows);
+});
+
+app.get("/sessions", authMiddleware, async (req, res) => {
     const uid = req.user.sub;
     const role = req.user.role;
-    const list = [...sessions.values()].filter((s) => role === "ADMIN" || s.userId === uid);
-    res.json(list);
+    let rows;
+    if (role === "ADMIN") {
+        const r = await pool.query(
+            `SELECT id, user_email AS "userId", title, notes, created_at AS "createdAt"
+             FROM interpretation_sessions ORDER BY created_at DESC`
+        );
+        rows = r.rows;
+    } else {
+        const r = await pool.query(
+            `SELECT id, user_email AS "userId", title, notes, created_at AS "createdAt"
+             FROM interpretation_sessions WHERE user_email = $1 ORDER BY created_at DESC`,
+            [uid]
+        );
+        rows = r.rows;
+    }
+    res.json(rows);
 });
 
-app.post("/sessions", authMiddleware, (req, res) => {
+app.post("/sessions", authMiddleware, async (req, res) => {
     const { title, notes } = req.body || {};
     const id = uuidv4();
     const row = {
@@ -72,12 +171,21 @@ app.post("/sessions", authMiddleware, (req, res) => {
         notes: String(notes || "").slice(0, 2000),
         createdAt: new Date().toISOString(),
     };
-    sessions.set(id, row);
+    await pool.query(
+        `INSERT INTO interpretation_sessions (id, user_email, title, notes, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [row.id, row.userId, row.title, row.notes, row.createdAt]
+    );
     res.status(201).json(row);
 });
 
-app.get("/sessions/:id", authMiddleware, (req, res) => {
-    const s = sessions.get(req.params.id);
+app.get("/sessions/:id", authMiddleware, async (req, res) => {
+    const { rows } = await pool.query(
+        `SELECT id, user_email AS "userId", title, notes, created_at AS "createdAt"
+         FROM interpretation_sessions WHERE id = $1`,
+        [req.params.id]
+    );
+    const s = rows[0];
     if (!s) return res.status(404).json({ message: "Session introuvable." });
     if (req.user.role !== "ADMIN" && s.userId !== req.user.sub) {
         return res.status(403).json({ message: "Accès refusé." });
@@ -85,30 +193,45 @@ app.get("/sessions/:id", authMiddleware, (req, res) => {
     res.json(s);
 });
 
-app.put("/sessions/:id", authMiddleware, (req, res) => {
-    const s = sessions.get(req.params.id);
+app.put("/sessions/:id", authMiddleware, async (req, res) => {
+    const { rows } = await pool.query(
+        `SELECT id, user_email AS "userId", title, notes FROM interpretation_sessions WHERE id = $1`,
+        [req.params.id]
+    );
+    const s = rows[0];
     if (!s) return res.status(404).json({ message: "Session introuvable." });
     if (req.user.role !== "ADMIN" && s.userId !== req.user.sub) {
         return res.status(403).json({ message: "Accès refusé." });
     }
     const { title, notes } = req.body || {};
-    if (title != null) s.title = String(title).slice(0, 200);
-    if (notes != null) s.notes = String(notes).slice(0, 2000);
-    sessions.set(s.id, s);
-    res.json(s);
+    const newTitle = title != null ? String(title).slice(0, 200) : s.title;
+    const newNotes = notes != null ? String(notes).slice(0, 2000) : s.notes;
+    await pool.query(
+        `UPDATE interpretation_sessions SET title = $1, notes = $2 WHERE id = $3`,
+        [newTitle, newNotes, req.params.id]
+    );
+    const { rows: out } = await pool.query(
+        `SELECT id, user_email AS "userId", title, notes, created_at AS "createdAt"
+         FROM interpretation_sessions WHERE id = $1`,
+        [req.params.id]
+    );
+    res.json(out[0]);
 });
 
-app.delete("/sessions/:id", authMiddleware, (req, res) => {
-    const s = sessions.get(req.params.id);
+app.delete("/sessions/:id", authMiddleware, async (req, res) => {
+    const { rows } = await pool.query(
+        `SELECT user_email AS "userId" FROM interpretation_sessions WHERE id = $1`,
+        [req.params.id]
+    );
+    const s = rows[0];
     if (!s) return res.status(404).json({ message: "Session introuvable." });
     if (req.user.role !== "ADMIN" && s.userId !== req.user.sub) {
         return res.status(403).json({ message: "Accès refusé." });
     }
-    sessions.delete(req.params.id);
+    await pool.query(`DELETE FROM interpretation_sessions WHERE id = $1`, [req.params.id]);
     res.status(204).send();
 });
 
-/** Endpoint métier : demande d'analyse asynchrone (notification / traitement lourd). */
 app.post("/interpretation-requests", authMiddleware, (req, res) => {
     if (!mqChannel) {
         return res.status(503).json({ message: "File de messages indisponible." });
@@ -131,9 +254,9 @@ app.post("/interpretation-requests", authMiddleware, (req, res) => {
     });
 });
 
-/** Statistiques métier (exemple de permission ADMIN). */
-app.get("/stats/sessions", authMiddleware, requireAdmin, (_req, res) => {
-    res.json({ totalSessions: sessions.size });
+app.get("/stats/sessions", authMiddleware, requireAdmin, async (_req, res) => {
+    const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM interpretation_sessions`);
+    res.json({ totalSessions: rows[0].n });
 });
 
 async function registerConsul() {
@@ -162,14 +285,17 @@ async function registerConsul() {
     }
 }
 
-initMq()
-    .then(() => {
-        app.listen(PORT, () => {
-            console.log(`[api-service] écoute sur :${PORT}`);
-            registerConsul();
-        });
-    })
-    .catch((err) => {
-        console.error("[api-service] échec RabbitMQ:", err);
-        process.exit(1);
+async function main() {
+    await waitForDb();
+    await migrate();
+    await initMq();
+    app.listen(PORT, () => {
+        console.log(`[api-service] écoute sur :${PORT}`);
+        registerConsul();
     });
+}
+
+main().catch((err) => {
+    console.error("[api-service]", err);
+    process.exit(1);
+});

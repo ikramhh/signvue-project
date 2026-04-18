@@ -41,12 +41,35 @@ services:
     networks:
       - signvue-net
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: signvue
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signvue}
+      POSTGRES_DB: signvue
+    volumes:
+      - signvue-pg:/var/lib/postgresql/data
+      - ./infra/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - signvue-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signvue -d signvue"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   auth-service:
     build: ./services/auth-service
     environment:
       PORT: "3001"
       JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
+      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
       CONSUL_HOST: consul
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - signvue-net
     labels:
@@ -64,11 +87,16 @@ services:
     environment:
       PORT: "3002"
       JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
+      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       CONSUL_HOST: consul
     depends_on:
-      - rabbitmq
-      - auth-service
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      auth-service:
+        condition: service_started
     networks:
       - signvue-net
     labels:
@@ -105,6 +133,9 @@ services:
       - traefik.http.routers.signvue-web.entrypoints=web
       - traefik.http.routers.signvue-web.priority=1
       - traefik.http.services.signvue-web.loadbalancer.server.port=80
+
+volumes:
+  signvue-pg:
 
 networks:
   signvue-net:
