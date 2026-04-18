@@ -1,6 +1,7 @@
 /**
  * API métier SignVue — routes publiques (santé, enregistrement traductions), données en PostgreSQL.
  */
+const cors = require("cors");
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
@@ -69,6 +70,7 @@ function requireAdmin(req, res, next) {
 }
 
 const app = express();
+app.use(cors({ origin: true }));
 app.use(express.json());
 
 app.get("/health", async (_req, res) => {

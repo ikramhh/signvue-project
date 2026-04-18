@@ -2,6 +2,7 @@
  * Service d'authentification SignVue — PostgreSQL, JWT, refresh tokens, rôles USER / ADMIN.
  */
 const crypto = require("crypto");
+const cors = require("cors");
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -62,6 +63,7 @@ async function revokeRefresh(raw) {
 }
 
 const app = express();
+app.use(cors({ origin: true }));
 app.use(express.json());
 
 app.get("/health", async (_req, res) => {

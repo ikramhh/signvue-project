@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Équivalent NEXT_PUBLIC_API_URL : URL du backend Render (sans slash final) -->
+    <meta name="signvue-api-base" content="https://signvue-api.onrender.com">
     <title>SignVue — Reconnaissance de la langue des signes</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +21,36 @@
         <a class="logo" href="#accueil">
             <span class="logo-text">SignVue</span>
         </a>
+
+        <nav class="nav-main" aria-label="Navigation principale">
+            <a href="#fonctionnalites" class="nav-item">Fonctionnalités</a>
+            <a href="#demo" class="nav-item">Démo</a>
+        </nav>
+
+        <div class="header-ctas">
+            <button type="button" id="header-btn-auth" class="btn btn-outline js-open-auth">Connexion</button>
+            <div id="header-user-bar" class="header-user-bar is-hidden">
+                <div class="user-menu" id="user-menu">
+                    <button type="button" id="user-account-btn" class="user-account-icon" aria-expanded="false" aria-label="Compte utilisateur">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </button>
+                    <div id="user-account-panel" class="user-account-panel" hidden>
+                        <p class="user-account-panel-title">Compte</p>
+                        <dl class="user-account-details">
+                            <dt>E-mail</dt>
+                            <dd id="user-panel-email">—</dd>
+                        </dl>
+                        <span class="user-account-badge">SignVue</span>
+                        <button type="button" id="btn-logout" class="btn btn-outline btn-compact">Déconnexion</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Ouvrir le menu"></button>
     </div>
 </header>
 
@@ -40,37 +72,105 @@
         <div class="hero-copy hero-copy--on-photo">
             <h1>Reconnaissance de la langue des signes</h1>
             <p class="hero-lead">Traduction en temps réel grâce à l’IA.</p>
+
+            <div class="pill-strip anim-fade-up" style="--delay: 0.1s" data-reveal>
+                <span class="pill-strip-prefix">Démo</span>
+                <span class="pill-sep">·</span>
+                <a href="#demo" class="pill-strip-link js-demo-link">Essayer la reconnaissance</a>
+            </div>
+
+            <div class="hero-cta-row anim-fade-up" style="--delay: 0.2s" data-reveal>
+                <button type="button" class="btn btn-on-photo btn-on-photo-solid js-open-auth">Connexion</button>
+                <a href="#demo" class="btn btn-on-photo js-demo-link">Voir la démo</a>
+            </div>
         </div>
     </div>
 </section>
 
 <!-- FEATURES -->
-<section class="features">
+<section class="features" id="fonctionnalites">
 
     <h2 class="section-title">Fonctionnalités</h2>
 
     <div class="feature-grid">
 
-        <div class="feature-card">
-            <img src="./images/sign3.png" alt="Reconnaissance en direct">
+        <button type="button" class="feature-card feature-card--clickable" data-feature="1" tabindex="0" aria-expanded="false">
+            <div class="feature-card-thumb">
+                <img src="./images/sign3.png" alt="">
+            </div>
             <h3>Reconnaissance en direct</h3>
             <p>Détection des gestes en temps réel.</p>
-        </div>
+            <span class="feature-card-hint">En savoir plus</span>
+        </button>
 
-        <div class="feature-card">
-            <img src="./images/sign4.png" alt="Texte et voix">
-            <h3>Texte & voix</h3>
+        <button type="button" class="feature-card feature-card--clickable" data-feature="2" tabindex="0" aria-expanded="false">
+            <div class="feature-card-thumb">
+                <img src="./images/sign4.png" alt="">
+            </div>
+            <h3>Texte &amp; voix</h3>
             <p>Conversion automatique en texte et audio.</p>
-        </div>
+            <span class="feature-card-hint">En savoir plus</span>
+        </button>
 
-        <div class="feature-card">
-            <img src="./images/sign5.png" alt="Sécurité">
+        <button type="button" class="feature-card feature-card--clickable" data-feature="3" tabindex="0" aria-expanded="false">
+            <div class="feature-card-thumb">
+                <img src="./images/sign5.png" alt="">
+            </div>
             <h3>Vie privée</h3>
             <p>Aucune vidéo stockée.</p>
-        </div>
+            <span class="feature-card-hint">En savoir plus</span>
+        </button>
 
     </div>
 
+    <div id="feature-detail" class="feature-detail" hidden>
+        <button type="button" id="feature-detail-close" class="feature-detail-close" aria-label="Fermer">×</button>
+        <div class="feature-detail-inner">
+            <div class="feature-detail-visual">
+                <img id="feature-detail-img" src="" alt="">
+            </div>
+            <div class="feature-detail-copy">
+                <h3 id="feature-detail-title"></h3>
+                <div id="feature-detail-body" class="feature-detail-body"></div>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- DÉMO -->
+<section class="demo-section" id="demo">
+    <div class="demo-inner">
+        <h2 class="section-title">Démo caméra</h2>
+        <p id="demo-lead-default" class="demo-lead">Connectez-vous pour lancer la démo avec votre webcam.</p>
+        <p id="demo-lead-logged" class="demo-lead is-hidden">Lancez la capture pour simuler la reconnaissance en direct.</p>
+
+        <div class="demo-layout">
+            <div class="video-shell video-shell--demo">
+                <video id="video" playsinline muted></video>
+                <div id="video-placeholder" class="video-placeholder video-placeholder--demo">
+                    <span>Aperçu caméra</span>
+                    <span>Cliquez sur lecture pour démarrer</span>
+                </div>
+                <button type="button" id="play-fab" class="play-fab" aria-label="Démarrer la caméra">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+            </div>
+            <div class="demo-result-panel">
+                <span class="result-label">Texte reconnu</span>
+                <p id="output" class="result-value">—</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cta-band">
+    <div class="cta-glow" aria-hidden="true"></div>
+    <div class="cta-inner">
+        <h2>Prêt à essayer ?</h2>
+        <p>Créez un compte ou connectez-vous pour accéder à la démo interactive.</p>
+        <button type="button" class="btn btn-on-dark js-open-auth">Connexion</button>
+    </div>
 </section>
 
 </main>
@@ -79,5 +179,41 @@
     <p>© SignVue</p>
 </footer>
 
+<!-- Modale auth -->
+<div id="auth-modal" class="auth-modal" hidden>
+    <div id="auth-modal-backdrop" class="auth-modal-backdrop" aria-hidden="true"></div>
+    <div class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title">
+        <button type="button" id="auth-close" class="auth-close" aria-label="Fermer">×</button>
+        <h2 id="auth-dialog-title">Connexion</h2>
+        <p id="auth-intro" class="auth-intro"></p>
+        <p id="auth-error" class="auth-error" hidden></p>
+
+        <div class="auth-tabs" role="tablist">
+            <button type="button" id="tab-login" class="auth-tab is-active" role="tab" aria-selected="true">Connexion</button>
+            <button type="button" id="tab-register" class="auth-tab" role="tab" aria-selected="false">Inscription</button>
+        </div>
+
+        <form id="form-login" class="auth-form" autocomplete="on">
+            <label class="auth-label" for="login-email">E-mail</label>
+            <input id="login-email" class="auth-input" type="email" name="email" required autocomplete="username">
+            <label class="auth-label" for="login-password">Mot de passe</label>
+            <input id="login-password" class="auth-input" type="password" name="password" required autocomplete="current-password">
+            <button type="submit" class="btn btn-primary auth-submit">Se connecter</button>
+        </form>
+
+        <form id="form-register" class="auth-form is-hidden" autocomplete="on">
+            <label class="auth-label" for="reg-email">E-mail</label>
+            <input id="reg-email" class="auth-input" type="email" name="email" required autocomplete="username">
+            <label class="auth-label" for="reg-password">Mot de passe</label>
+            <input id="reg-password" class="auth-input" type="password" name="password" required minlength="6" autocomplete="new-password">
+            <label class="auth-label" for="reg-password2">Confirmer le mot de passe</label>
+            <input id="reg-password2" class="auth-input" type="password" name="password2" required minlength="6" autocomplete="new-password">
+            <button type="submit" class="btn btn-primary auth-submit">Créer un compte</button>
+        </form>
+    </div>
+</div>
+
+<script src="./config.js"></script>
+<script src="./script.js"></script>
 </body>
 </html>

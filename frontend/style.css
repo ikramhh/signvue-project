@@ -148,6 +148,11 @@ a {
     color: var(--navy);
 }
 
+.user-account-panel .btn-compact {
+    margin-top: 0.85rem;
+    width: 100%;
+}
+
 .btn-demo-locked {
     opacity: 0.72;
     cursor: not-allowed;

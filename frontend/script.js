@@ -1,10 +1,37 @@
 /**
- * Auth : par défaut JWT via Traefik (/auth, /api). Ajouter ?local=1 à l’URL pour l’ancien mode localStorage (démo hors Docker).
+ * Auth : JWT vers le backend (chemins /auth, /api).
+ * Base URL : meta signvue-api-base, window.__SIGNVUE_API_BASE__, ou défaut Render.
+ * Ajouter ?local=1 pour la démo hors API (comptes fictifs dans localStorage).
  */
 const USE_LOCAL_AUTH = new URLSearchParams(window.location.search).get("local") === "1";
 const STORAGE_ACCOUNTS = "signvue_accounts_v1";
 const STORAGE_SESSION = "signvue_session_v1";
 const STORAGE_TOKEN = "signvue_jwt";
+
+/** Migration ancien token sessionStorage → localStorage */
+(function migrateJwtToLocalStorage() {
+    if (USE_LOCAL_AUTH) return;
+    try {
+        const s = sessionStorage.getItem(STORAGE_TOKEN);
+        if (s && !localStorage.getItem(STORAGE_TOKEN)) {
+            localStorage.setItem(STORAGE_TOKEN, s);
+            sessionStorage.removeItem(STORAGE_TOKEN);
+        }
+    } catch (_) {}
+})();
+
+function getApiBase() {
+    const raw =
+        (typeof window.__SIGNVUE_API_BASE__ === "string" && window.__SIGNVUE_API_BASE__.trim()) ||
+        "";
+    const base = (raw || "https://signvue-api.onrender.com").replace(/\/$/, "");
+    return base;
+}
+
+function apiUrl(path) {
+    const p = String(path || "").startsWith("/") ? path : `/${path}`;
+    return `${getApiBase()}${p}`;
+}
 
 const video = document.getElementById("video");
 const output = document.getElementById("output");
@@ -91,12 +118,22 @@ function setSessionEmail(email) {
 
 function clearSession() {
     sessionStorage.removeItem(STORAGE_SESSION);
-    sessionStorage.removeItem(STORAGE_TOKEN);
+    try {
+        sessionStorage.removeItem(STORAGE_TOKEN);
+    } catch (_) {}
+    try {
+        localStorage.removeItem(STORAGE_TOKEN);
+    } catch (_) {}
     localStorage.removeItem(STORAGE_SESSION);
 }
 
 function getAuthToken() {
-    return sessionStorage.getItem(STORAGE_TOKEN);
+    if (USE_LOCAL_AUTH) return null;
+    try {
+        return localStorage.getItem(STORAGE_TOKEN);
+    } catch {
+        return null;
+    }
 }
 
 function isLoggedIn() {
@@ -110,31 +147,36 @@ function apiFetch(path, options = {}) {
     const token = getAuthToken();
     const headers = { ...options.headers };
     if (token) headers.Authorization = `Bearer ${token}`;
-    return fetch(path, { ...options, headers });
+    const url = String(path || "").startsWith("http") ? path : apiUrl(path);
+    return fetch(url, { ...options, headers });
 }
 
 async function apiRegister(email, password) {
-    const r = await fetch("/auth/register", {
+    const r = await fetch(apiUrl("/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return { ok: false, message: data.message || "Inscription impossible." };
-    sessionStorage.setItem(STORAGE_TOKEN, data.token);
+    try {
+        localStorage.setItem(STORAGE_TOKEN, data.token);
+    } catch (_) {}
     setSessionEmail(data.user.email);
     return { ok: true };
 }
 
 async function apiLogin(email, password) {
-    const r = await fetch("/auth/login", {
+    const r = await fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return { ok: false, message: data.message || "Connexion impossible." };
-    sessionStorage.setItem(STORAGE_TOKEN, data.token);
+    try {
+        localStorage.setItem(STORAGE_TOKEN, data.token);
+    } catch (_) {}
     setSessionEmail(data.user.email);
     return { ok: true };
 }
@@ -143,7 +185,7 @@ async function validateSessionWithServer() {
     const t = getAuthToken();
     if (!t) return;
     try {
-        const r = await fetch("/auth/me", { headers: { Authorization: `Bearer ${t}` } });
+        const r = await fetch(apiUrl("/auth/me"), { headers: { Authorization: `Bearer ${t}` } });
         if (r.ok) {
             const u = await r.json();
             setSessionEmail(u.email);
@@ -151,7 +193,7 @@ async function validateSessionWithServer() {
             clearSession();
         }
     } catch {
-        clearSession();
+        /* Réseau indisponible : on garde le token, l’UI reste utilisable */
     }
 }
 
@@ -379,7 +421,7 @@ if (formLogin) {
             try {
                 res = await apiLogin(email, password);
             } catch {
-                res = { ok: false, message: "Serveur injoignable. Lancez Docker (port 9080) ou utilisez ?local=1." };
+                res = { ok: false, message: "Serveur injoignable. Vérifiez l’URL API (config) ou utilisez ?local=1." };
             }
         }
         if (!res.ok) {
@@ -414,7 +456,7 @@ if (formRegister) {
             try {
                 res = await apiRegister(email, p1);
             } catch {
-                res = { ok: false, message: "Serveur injoignable. Lancez Docker (port 9080) ou utilisez ?local=1." };
+                res = { ok: false, message: "Serveur injoignable. Vérifiez l’URL API (config) ou utilisez ?local=1." };
             }
         }
         if (!res.ok) {
@@ -563,12 +605,20 @@ function initRevealOnScroll() {
 }
 
 async function bootstrap() {
-    if (!USE_LOCAL_AUTH) {
-        await validateSessionWithServer();
+    try {
+        if (!USE_LOCAL_AUTH) {
+            await validateSessionWithServer();
+        }
+    } catch (_) {
+        /* pas de blocage UI si user = null ou réseau */
     }
-    renderAuthChrome();
-    initRevealOnScroll();
-    initFeatureDetailPanels();
+    try {
+        renderAuthChrome();
+        initRevealOnScroll();
+        initFeatureDetailPanels();
+    } catch (err) {
+        console.warn("[SignVue]", err);
+    }
 }
 
 bootstrap();
