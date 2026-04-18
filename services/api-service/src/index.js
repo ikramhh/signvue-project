@@ -288,7 +288,7 @@ async function registerConsul() {
 async function main() {
     await waitForDb();
     await migrate();
-    await initMq();
+    // await initMq();
     app.listen(PORT, () => {
         console.log(`[api-service] écoute sur :${PORT}`);
         registerConsul();
