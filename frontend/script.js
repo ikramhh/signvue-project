@@ -598,10 +598,25 @@ function initRevealOnScroll() {
                 obs.unobserve(entry.target);
             });
         },
-        { threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
+        /* Marge généreuse : l’ancienne marge négative masquait souvent le hero au chargement */
+        { threshold: 0.05, rootMargin: "0px 0px 12% 0px" }
     );
 
-    nodes.forEach((el) => io.observe(el));
+    nodes.forEach((el) => {
+        if (el.classList.contains("is-visible")) return;
+        io.observe(el);
+    });
+
+    requestAnimationFrame(() => {
+        nodes.forEach((el) => {
+            if (el.classList.contains("is-visible")) return;
+            const r = el.getBoundingClientRect();
+            if (r.top < window.innerHeight && r.bottom > 0) {
+                el.classList.add("is-visible");
+                io.unobserve(el);
+            }
+        });
+    });
 }
 
 async function bootstrap() {

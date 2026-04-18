@@ -1236,13 +1236,12 @@ a {
 
 /* —— Mobile —— */
 @media (max-width: 960px) {
-    .nav-main,
-    .header-ctas {
+    /* Ne masquer que la nav : Connexion / compte restent visibles sans ouvrir le menu */
+    .nav-main {
         display: none;
     }
 
-    .header-inner.nav-open .nav-main,
-    .header-inner.nav-open .header-ctas {
+    .header-inner.nav-open .nav-main {
         display: flex;
         flex-direction: column;
         align-items: stretch;
@@ -1253,15 +1252,14 @@ a {
         border-top: 1px solid rgba(91, 45, 140, 0.1);
     }
 
-    .header-inner.nav-open .header-ctas {
-        border-top: none;
-        padding-top: 0.5rem;
-        gap: 0.5rem;
+    .header-ctas {
+        margin-left: auto;
+        flex-shrink: 0;
     }
 
     .header-user-bar {
-        width: 100%;
-        justify-content: flex-start;
+        width: auto;
+        justify-content: flex-end;
     }
 
     .header-inner.nav-open {
@@ -1270,7 +1268,7 @@ a {
 
     .nav-toggle {
         display: block;
-        margin-left: auto;
+        flex-shrink: 0;
     }
 
     .hero-inner {
