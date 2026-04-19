@@ -1,24 +1,7 @@
 /**
- * Auth : JWT vers le backend (chemins /auth, /api).
+ * Auth : Supabase Auth.
  * Base URL : meta signvue-api-base, window.__SIGNVUE_API_BASE__, ou défaut Render.
- * Ajouter ?local=1 pour la démo hors API (comptes fictifs dans localStorage).
  */
-const USE_LOCAL_AUTH = new URLSearchParams(window.location.search).get("local") === "1";
-const STORAGE_ACCOUNTS = "signvue_accounts_v1";
-const STORAGE_SESSION = "signvue_session_v1";
-const STORAGE_TOKEN = "signvue_jwt";
-
-/** Migration ancien token sessionStorage → localStorage */
-(function migrateJwtToLocalStorage() {
-    if (USE_LOCAL_AUTH) return;
-    try {
-        const s = sessionStorage.getItem(STORAGE_TOKEN);
-        if (s && !localStorage.getItem(STORAGE_TOKEN)) {
-            localStorage.setItem(STORAGE_TOKEN, s);
-            sessionStorage.removeItem(STORAGE_TOKEN);
-        }
-    } catch (_) {}
-})();
 
 function getApiBase() {
     const raw =
@@ -90,133 +73,38 @@ function normalizeEmail(email) {
     return String(email).trim().toLowerCase();
 }
 
-function getAccounts() {
-    try {
-        const raw = localStorage.getItem(STORAGE_ACCOUNTS);
-        const list = raw ? JSON.parse(raw) : [];
-        return Array.isArray(list) ? list : [];
-    } catch {
-        return [];
-    }
-}
+let currentUser = null;
 
-function saveAccounts(accounts) {
-    localStorage.setItem(STORAGE_ACCOUNTS, JSON.stringify(accounts));
+async function getAuthToken() {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
 }
 
 function getSessionEmail() {
-    if (USE_LOCAL_AUTH) {
-        return localStorage.getItem(STORAGE_SESSION);
-    }
-    return sessionStorage.getItem(STORAGE_SESSION);
-}
-
-function setSessionEmail(email) {
-    const e = normalizeEmail(email);
-    sessionStorage.setItem(STORAGE_SESSION, e);
-}
-
-function clearSession() {
-    sessionStorage.removeItem(STORAGE_SESSION);
-    try {
-        sessionStorage.removeItem(STORAGE_TOKEN);
-    } catch (_) {}
-    try {
-        localStorage.removeItem(STORAGE_TOKEN);
-    } catch (_) {}
-    localStorage.removeItem(STORAGE_SESSION);
-}
-
-function getAuthToken() {
-    if (USE_LOCAL_AUTH) return null;
-    try {
-        return localStorage.getItem(STORAGE_TOKEN);
-    } catch {
-        return null;
-    }
+    return currentUser?.email || '';
 }
 
 function isLoggedIn() {
-    if (USE_LOCAL_AUTH) {
-        return !!localStorage.getItem(STORAGE_SESSION);
-    }
-    return !!getAuthToken();
+    return !!currentUser;
 }
 
-function apiFetch(path, options = {}) {
-    const token = getAuthToken();
+async function apiFetch(path, options = {}) {
+    const token = await getAuthToken();
     const headers = { ...options.headers };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const url = String(path || "").startsWith("http") ? path : apiUrl(path);
+    const url = path.startsWith('http') ? path : apiUrl(path);
     return fetch(url, { ...options, headers });
 }
 
-async function apiRegister(email, password) {
-    const r = await fetch(apiUrl("/auth/register"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) return { ok: false, message: data.message || "Inscription impossible." };
-    try {
-        localStorage.setItem(STORAGE_TOKEN, data.token);
-    } catch (_) {}
-    setSessionEmail(data.user.email);
+async function supabaseRegister(email, password) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { ok: false, message: error.message };
     return { ok: true };
 }
 
-async function apiLogin(email, password) {
-    const r = await fetch(apiUrl("/auth/login"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) return { ok: false, message: data.message || "Connexion impossible." };
-    try {
-        localStorage.setItem(STORAGE_TOKEN, data.token);
-    } catch (_) {}
-    setSessionEmail(data.user.email);
-    return { ok: true };
-}
-
-async function validateSessionWithServer() {
-    const t = getAuthToken();
-    if (!t) return;
-    try {
-        const r = await fetch(apiUrl("/auth/me"), { headers: { Authorization: `Bearer ${t}` } });
-        if (r.ok) {
-            const u = await r.json();
-            setSessionEmail(u.email);
-        } else {
-            clearSession();
-        }
-    } catch {
-        /* Réseau indisponible : on garde le token, l’UI reste utilisable */
-    }
-}
-
-function registerAccount(email, password) {
-    const e = normalizeEmail(email);
-    const accounts = getAccounts();
-    if (accounts.some((a) => a.email === e)) {
-        return { ok: false, message: "Cet e-mail est déjà utilisé. Connectez-vous." };
-    }
-    accounts.push({ email: e, password });
-    saveAccounts(accounts);
-    localStorage.setItem(STORAGE_SESSION, e);
-    return { ok: true };
-}
-
-function loginAccount(email, password) {
-    const e = normalizeEmail(email);
-    const accounts = getAccounts();
-    const found = accounts.find((a) => a.email === e && a.password === password);
-    if (!found) {
-        return { ok: false, message: "E-mail ou mot de passe incorrect." };
-    }
-    localStorage.setItem(STORAGE_SESSION, e);
+async function supabaseLogin(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { ok: false, message: error.message };
     return { ok: true };
 }
 
@@ -355,13 +243,11 @@ function startCamera() {
             if (placeholder) placeholder.classList.add("is-hidden");
             if (playFab) playFab.classList.add("is-hidden");
             startSimulation();
-            if (!USE_LOCAL_AUTH) {
-                apiFetch("/api/interpretation-requests", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ source: "demo-camera" }),
-                }).catch(() => {});
-            }
+            apiFetch("/api/interpretation-requests", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ source: "demo-camera" }),
+            }).catch(() => {});
         })
         .catch(() => {
             if (output) output.textContent = "Accès caméra refusé";
@@ -415,14 +301,10 @@ if (formLogin) {
         const email = document.getElementById("login-email")?.value || "";
         const password = document.getElementById("login-password")?.value || "";
         let res;
-        if (USE_LOCAL_AUTH) {
-            res = loginAccount(email, password);
-        } else {
-            try {
-                res = await apiLogin(email, password);
-            } catch {
-                res = { ok: false, message: "Serveur injoignable. Vérifiez l’URL API (config) ou utilisez ?local=1." };
-            }
+        try {
+            res = await supabaseLogin(email, password);
+        } catch {
+            res = { ok: false, message: "Erreur de connexion." };
         }
         if (!res.ok) {
             showAuthError(res.message);
@@ -450,14 +332,10 @@ if (formRegister) {
             return;
         }
         let res;
-        if (USE_LOCAL_AUTH) {
-            res = registerAccount(email, p1);
-        } else {
-            try {
-                res = await apiRegister(email, p1);
-            } catch {
-                res = { ok: false, message: "Serveur injoignable. Vérifiez l’URL API (config) ou utilisez ?local=1." };
-            }
+        try {
+            res = await supabaseRegister(email, p1);
+        } catch {
+            res = { ok: false, message: "Erreur d'inscription." };
         }
         if (!res.ok) {
             showAuthError(res.message);
@@ -487,9 +365,9 @@ if (userMenu) {
 }
 
 if (btnLogout) {
-    btnLogout.addEventListener("click", () => {
+    btnLogout.addEventListener("click", async () => {
         closeUserAccountPanel();
-        clearSession();
+        await supabase.auth.signOut();
         clearSimulation();
         if (video?.srcObject) {
             video.srcObject.getTracks().forEach((t) => t.stop());
@@ -620,20 +498,13 @@ function initRevealOnScroll() {
 }
 
 async function bootstrap() {
-    try {
-        if (!USE_LOCAL_AUTH) {
-            await validateSessionWithServer();
-        }
-    } catch (_) {
-        /* pas de blocage UI si user = null ou réseau */
-    }
-    try {
+    supabase.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
         renderAuthChrome();
-        initRevealOnScroll();
-        initFeatureDetailPanels();
-    } catch (err) {
-        console.warn("[SignVue]", err);
-    }
+    });
+    renderAuthChrome();
+    initRevealOnScroll();
+    initFeatureDetailPanels();
 }
 
 bootstrap();

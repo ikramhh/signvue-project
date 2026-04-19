@@ -60,28 +60,6 @@ services:
       timeout: 5s
       retries: 5
 
-  auth-service:
-    build: ./services/auth-service
-    environment:
-      PORT: "3001"
-      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
-      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
-      CONSUL_HOST: consul
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - signvue-net
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=signvue-net
-      - traefik.http.routers.signvue-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)
-      - traefik.http.routers.signvue-auth.entrypoints=web
-      - traefik.http.routers.signvue-auth.priority=100
-      - traefik.http.middlewares.signvue-auth-strip.stripprefix.prefixes=/auth
-      - traefik.http.routers.signvue-auth.middlewares=signvue-auth-strip
-      - traefik.http.services.signvue-auth.loadbalancer.server.port=3001
-
   api-service:
     build: ./services/api-service
     environment:
@@ -94,8 +72,6 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
-      auth-service:
         condition: service_started
     networks:
       - signvue-net
