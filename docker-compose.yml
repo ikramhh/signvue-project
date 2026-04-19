@@ -1,8 +1,4 @@
 # SignVue — stack microservices (dev / démo multi-conteneurs)
-# Accès UI : http://localhost:9080
-# Traefik dashboard : http://localhost:8080
-# Consul UI : http://localhost:8500
-# RabbitMQ management : http://localhost:15672 (guest / guest)
 
 services:
   traefik:
@@ -42,10 +38,10 @@ services:
       - signvue-net
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16
     environment:
       POSTGRES_USER: signvue
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signvue}
+      POSTGRES_PASSWORD: signvue
       POSTGRES_DB: signvue
     volumes:
       - signvue-pg:/var/lib/postgresql/data
@@ -64,8 +60,8 @@ services:
     build: ./services/auth-service
     environment:
       PORT: "3001"
-      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
-      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
+      DATABASE_URL: postgresql://signvue:signvue@postgres:5432/signvue
+      JWT_SECRET: signvue-secret
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,8 +81,8 @@ services:
     build: ./services/api-service
     environment:
       PORT: "3002"
-      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
-      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
+      JWT_SECRET: signvue-secret
+      DATABASE_URL: postgresql://signvue:signvue@postgres:5432/signvue
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       CONSUL_HOST: consul
     depends_on:
