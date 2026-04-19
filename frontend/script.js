@@ -635,6 +635,151 @@ async function bootstrap() {
         renderAuthChrome();
         initRevealOnScroll();
         initFeatureDetailPanels();
+
+        // Attach event listeners after DOM is ready
+        document.querySelectorAll(".js-open-auth").forEach((btn) => {
+            btn.addEventListener("click", () => openAuthModal("login", ""));
+        });
+
+        if (playFab) {
+            playFab.addEventListener("click", () => startCamera());
+        }
+
+        if (authClose) authClose.addEventListener("click", closeAuthModal);
+        if (authBackdrop) authBackdrop.addEventListener("click", closeAuthModal);
+
+        if (tabLogin) {
+            tabLogin.addEventListener("click", () => {
+                clearAuthError();
+                setAuthTab("login");
+            });
+        }
+        if (tabRegister) {
+            tabRegister.addEventListener("click", () => {
+                clearAuthError();
+                setAuthTab("register");
+            });
+        }
+
+        if (formLogin) {
+            formLogin.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                clearAuthError();
+                const email = document.getElementById("login-email")?.value || "";
+                const password = document.getElementById("login-password")?.value || "";
+                let res;
+                if (USE_LOCAL_AUTH) {
+                    res = loginAccount(email, password);
+                } else {
+                    try {
+                        res = await apiLogin(email, password);
+                    } catch {
+                        res = { ok: false, message: "Serveur injoignable. Vérifiez l’URL API (config) ou utilisez ?local=1." };
+                    }
+                }
+                if (!res.ok) {
+                    showAuthError(res.message);
+                    return;
+                }
+                closeAuthModal();
+                renderAuthChrome();
+                formLogin.reset();
+            });
+        }
+
+        if (formRegister) {
+            formRegister.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                clearAuthError();
+                const email = document.getElementById("reg-email")?.value || "";
+                const p1 = document.getElementById("reg-password")?.value || "";
+                const p2 = document.getElementById("reg-password2")?.value || "";
+                if (p1.length < 6) {
+                    showAuthError("Le mot de passe doit contenir au moins 6 caractères.");
+                    return;
+                }
+                if (p1 !== p2) {
+                    showAuthError("Les mots de passe ne correspondent pas.");
+                    return;
+                }
+                let res;
+                if (USE_LOCAL_AUTH) {
+                    res = registerAccount(email, p1);
+                } else {
+                    try {
+                        res = await apiRegister(email, p1);
+                    } catch {
+                        res = { ok: false, message: "Serveur injoignable. Vérifiez l’URL API (config) ou utilisez ?local=1." };
+                    }
+                }
+                if (!res.ok) {
+                    showAuthError(res.message);
+                    return;
+                }
+                closeAuthModal();
+                renderAuthChrome();
+                formRegister.reset();
+            });
+        }
+
+        if (userAccountBtn && userAccountPanel) {
+            userAccountBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleUserAccountPanel();
+            });
+        }
+
+        document.addEventListener("click", () => {
+            if (userAccountPanel && !userAccountPanel.hidden) {
+                closeUserAccountPanel();
+            }
+        });
+
+        if (userMenu) {
+            userMenu.addEventListener("click", (e) => e.stopPropagation());
+        }
+
+        if (btnLogout) {
+            btnLogout.addEventListener("click", () => {
+                closeUserAccountPanel();
+                clearSession();
+                clearSimulation();
+                if (video?.srcObject) {
+                    video.srcObject.getTracks().forEach((t) => t.stop());
+                    video.srcObject = null;
+                }
+                video?.classList.remove("is-active");
+                if (placeholder) placeholder.classList.remove("is-hidden");
+                if (playFab) playFab.classList.remove("is-hidden");
+                if (output) output.textContent = "—";
+                renderAuthChrome();
+            });
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key !== "Escape") return;
+            if (authModal && !authModal.hidden) {
+                closeAuthModal();
+                return;
+            }
+            if (featureDetailEl && !featureDetailEl.hidden) {
+                closeFeatureDetailPanel();
+                return;
+            }
+            if (userAccountPanel && !userAccountPanel.hidden) {
+                closeUserAccountPanel();
+            }
+        });
+
+        const navToggle = document.querySelector(".nav-toggle");
+        const headerInner = document.querySelector(".header-inner");
+        if (navToggle && headerInner) {
+            navToggle.addEventListener("click", () => {
+                const open = headerInner.classList.toggle("nav-open");
+                navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+            });
+        }
+
     } catch (err) {
         console.warn("[SignVue]", err);
     }
