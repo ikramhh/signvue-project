@@ -1,6 +1,6 @@
 # SignVue — stack microservices (dev / démo multi-conteneurs)
 # Accès UI : http://localhost:9080
-# Traefik dashboard : http://localhost:9081
+# Traefik dashboard : http://localhost:8080
 # Consul UI : http://localhost:8500
 # RabbitMQ management : http://localhost:15672 (guest / guest)
 
@@ -15,7 +15,7 @@ services:
       - --entrypoints.web.address=:80
     ports:
       - "9080:80"
-      - "9081:8080"
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -60,6 +60,23 @@ services:
       timeout: 5s
       retries: 5
 
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      PORT: "3001"
+      CONSUL_HOST: consul
+    networks:
+      - signvue-net
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=signvue-net
+      - traefik.http.routers.signvue-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)
+      - traefik.http.routers.signvue-auth.entrypoints=web
+      - traefik.http.routers.signvue-auth.priority=100
+      - traefik.http.middlewares.signvue-auth-strip.stripprefix.prefixes=/auth
+      - traefik.http.routers.signvue-auth.middlewares=signvue-auth-strip
+      - traefik.http.services.signvue-auth.loadbalancer.server.port=3001
+
   api-service:
     build: ./services/api-service
     environment:
@@ -72,6 +89,8 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_started
+      auth-service:
         condition: service_started
     networks:
       - signvue-net

@@ -27,31 +27,45 @@ async function initMq() {
     console.log("[api-service] connecté à RabbitMQ, file:", QUEUE_NAME);
 }
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
     const h = req.headers.authorization;
     if (!h?.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Authentification requise." });
     }
     try {
-        req.user = jwt.verify(h.slice(7), JWT_SECRET);
+        const response = await fetch('http://auth-service:3001/verify', {
+            headers: { Authorization: h }
+        });
+        if (!response.ok) {
+            return res.status(response.status).json({ message: "Token invalide." });
+        }
+        req.user = await response.json();
         next();
-    } catch {
-        res.status(401).json({ message: "Token invalide ou expiré." });
+    } catch (err) {
+        console.error('Auth middleware error:', err);
+        res.status(500).json({ message: "Erreur d'authentification." });
     }
 }
 
 /** JWT optionnel : sans en-tête, accès anonyme ; avec Bearer, token doit être valide. */
-function optionalAuth(req, res, next) {
+async function optionalAuth(req, res, next) {
     const h = req.headers.authorization;
     if (!h?.startsWith("Bearer ")) {
         req.user = null;
         return next();
     }
     try {
-        req.user = jwt.verify(h.slice(7), JWT_SECRET);
+        const response = await fetch('http://auth-service:3001/verify', {
+            headers: { Authorization: h }
+        });
+        if (!response.ok) {
+            return res.status(response.status).json({ message: "Token invalide." });
+        }
+        req.user = await response.json();
         next();
-    } catch {
-        res.status(401).json({ message: "Token invalide ou expiré." });
+    } catch (err) {
+        console.error('Optional auth error:', err);
+        res.status(500).json({ message: "Erreur d'authentification." });
     }
 }
 
