@@ -64,7 +64,11 @@ services:
     build: ./services/auth-service
     environment:
       PORT: "3001"
-      CONSUL_HOST: consul
+      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
+      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - signvue-net
     labels:
