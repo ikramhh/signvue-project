@@ -63,11 +63,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = Number(process.env.PORT) || 3001;
-const CONSUL_HOST = process.env.CONSUL_HOST || "localhost";
-const SERVICE_NAME = "auth-service";
-const SERVICE_ID = `${SERVICE_NAME}-${process.env.HOSTNAME || "1"}`;
-
 app.get("/verify", (req, res) => {
     const h = req.headers.authorization;
     if (!h?.startsWith("Bearer ")) {
