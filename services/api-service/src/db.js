@@ -1,89 +1,52 @@
-const { Pool } = require("pg");
-
-const DATABASE_URL = process.env.DATABASE_URL;
-
-if (!DATABASE_URL) {
-    console.error("[api-service] DATABASE_URL manquant.");
-    process.exit(1);
-}
-
-const pool = new Pool({
-    connectionString: DATABASE_URL,
-});
-
-/* -------------------- */
-/* WAIT FOR POSTGRES    */
-/* -------------------- */
-async function waitForDb(maxAttempts = 30, delayMs = 1000) {
-    for (let i = 0; i < maxAttempts; i++) {
-        try {
-            await pool.query("SELECT 1");
-            console.log("[api-service] Postgres prêt");
-            return;
-        } catch (e) {
-            console.warn(`[api-service] attente Postgres (${i + 1}/${maxAttempts})...`);
-            await new Promise((r) => setTimeout(r, delayMs));
-        }
-    }
-    throw new Error("Postgres indisponible après plusieurs tentatives.");
-}
-
-/* -------------------- */
-/* MIGRATIONS SAFE      */
-/* -------------------- */
 async function migrate() {
-    // USERS (évite crash si table inexistante)
+    // USERS (corrigé pour UUID + password)
     await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            email VARCHAR(255) UNIQUE
-        )
+            id UUID PRIMARY KEY,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
     `);
 
     // INTERPRETATION SESSIONS
     await pool.query(`
         CREATE TABLE IF NOT EXISTS interpretation_sessions (
             id UUID PRIMARY KEY,
-            user_email VARCHAR(255) NOT NULL,
-            title VARCHAR(200) NOT NULL,
-            notes TEXT NOT NULL DEFAULT '',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
+            user_email VARCHAR(255),
+            title VARCHAR(200),
+            notes TEXT DEFAULT '',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
     `);
 
     await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_interpretation_sessions_user
-        ON interpretation_sessions(user_email)
+        CREATE INDEX IF NOT EXISTS idx_sessions_user
+        ON interpretation_sessions(user_email);
     `);
 
     // TRANSLATIONS
     await pool.query(`
         CREATE TABLE IF NOT EXISTS translations (
             id UUID PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-            source_text TEXT NOT NULL DEFAULT '',
-            target_text TEXT NOT NULL DEFAULT '',
-            lang_from VARCHAR(32) NOT NULL DEFAULT '',
-            lang_to VARCHAR(32) NOT NULL DEFAULT '',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
+            user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+            source_text TEXT DEFAULT '',
+            target_text TEXT DEFAULT '',
+            lang_from VARCHAR(32),
+            lang_to VARCHAR(32),
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
     `);
 
     await pool.query(`
         CREATE INDEX IF NOT EXISTS idx_translations_user
-        ON translations(user_id)
+        ON translations(user_id);
     `);
 
     await pool.query(`
         CREATE INDEX IF NOT EXISTS idx_translations_created
-        ON translations(created_at DESC)
+        ON translations(created_at DESC);
     `);
 
-    console.log("[api-service] migrations terminées");
+    console.log("[api-service] migrations OK");
 }
-
-module.exports = {
-    pool,
-    waitForDb,
-    migrate,
-};
