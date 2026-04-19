@@ -1,8 +1,4 @@
-# SignVue — stack microservices (dev / démo multi-conteneurs)
-# Accès UI : http://localhost:9080
-# Traefik dashboard : http://localhost:8080
-# Consul UI : http://localhost:8500
-# RabbitMQ management : http://localhost:15672 (guest / guest)
+version: "3.9"
 
 services:
   traefik:
@@ -45,68 +41,51 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: signvue
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signvue}
+      POSTGRES_PASSWORD: signvue
       POSTGRES_DB: signvue
-    volumes:
-      - signvue-pg:/var/lib/postgresql/data
-      - ./infra/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks:
       - signvue-net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U signvue -d signvue"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   auth-service:
     build: ./services/auth-service
     environment:
       PORT: "3001"
-      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
-      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
+      DATABASE_URL: postgresql://signvue:signvue@postgres:5432/signvue
+      JWT_SECRET: signvue-secret
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     networks:
       - signvue-net
     labels:
       - traefik.enable=true
       - traefik.docker.network=signvue-net
-      - traefik.http.routers.signvue-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)
-      - traefik.http.routers.signvue-auth.entrypoints=web
-      - traefik.http.routers.signvue-auth.priority=100
-      - traefik.http.middlewares.signvue-auth-strip.stripprefix.prefixes=/auth
-      - traefik.http.routers.signvue-auth.middlewares=signvue-auth-strip
-      - traefik.http.services.signvue-auth.loadbalancer.server.port=3001
+      - traefik.http.routers.auth.rule=PathPrefix(`/auth`)
+      - traefik.http.middlewares.auth-strip.stripprefix.prefixes=/auth
+      - traefik.http.routers.auth.middlewares=auth-strip
+      - traefik.http.services.auth.loadbalancer.server.port=3001
 
   api-service:
     build: ./services/api-service
     environment:
       PORT: "3002"
-      JWT_SECRET: ${JWT_SECRET:-signvue-dev-jwt-secret-change-me}
-      DATABASE_URL: postgresql://signvue:${POSTGRES_PASSWORD:-signvue}@postgres:5432/signvue
+      DATABASE_URL: postgresql://signvue:signvue@postgres:5432/signvue
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       CONSUL_HOST: consul
     depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_started
-      auth-service:
-        condition: service_started
+      - postgres
+      - rabbitmq
+      - auth-service
     networks:
       - signvue-net
     labels:
       - traefik.enable=true
       - traefik.docker.network=signvue-net
-      - traefik.http.routers.signvue-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api`)
-      - traefik.http.routers.signvue-api.entrypoints=web
-      - traefik.http.routers.signvue-api.priority=90
-      - traefik.http.middlewares.signvue-api-strip.stripprefix.prefixes=/api
-      - traefik.http.routers.signvue-api.middlewares=signvue-api-strip
-      - traefik.http.services.signvue-api.loadbalancer.server.port=3002
+      - traefik.http.routers.api.rule=PathPrefix(`/api`)
+      - traefik.http.middlewares.api-strip.stripprefix.prefixes=/api
+      - traefik.http.routers.api.middlewares=api-strip
+      - traefik.http.services.api.loadbalancer.server.port=3002
 
   worker-service:
     build: ./services/worker-service
@@ -128,14 +107,9 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=signvue-net
-      - traefik.http.routers.signvue-web.rule=Host(`localhost`) || Host(`127.0.0.1`)
-      - traefik.http.routers.signvue-web.entrypoints=web
-      - traefik.http.routers.signvue-web.priority=1
-      - traefik.http.services.signvue-web.loadbalancer.server.port=80
-
-volumes:
-  signvue-pg:
+      - traefik.http.routers.web.rule=Host(`localhost`)
+      - traefik.http.services.web.loadbalancer.server.port=80
 
 networks:
   signvue-net:
-    name: signvue-net
+    driver: bridge
