@@ -81,11 +81,42 @@ async function getAuthToken() {
 }
 
 function getSessionEmail() {
-    return currentUser?.email || '';
+    if (USE_LOCAL_AUTH) {
+        return localStorage.getItem(STORAGE_SESSION);
+    }
+    return sessionStorage.getItem(STORAGE_SESSION);
+}
+
+function setSessionEmail(email) {
+    const e = normalizeEmail(email);
+    sessionStorage.setItem(STORAGE_SESSION, e);
+}
+
+function clearSession() {
+    sessionStorage.removeItem(STORAGE_SESSION);
+    try {
+        sessionStorage.removeItem(STORAGE_TOKEN);
+    } catch (_) {}
+    try {
+        localStorage.removeItem(STORAGE_TOKEN);
+    } catch (_) {}
+    localStorage.removeItem(STORAGE_SESSION);
+}
+
+function getAuthToken() {
+    if (USE_LOCAL_AUTH) return null;
+    try {
+        return localStorage.getItem(STORAGE_TOKEN);
+    } catch {
+        return null;
+    }
 }
 
 function isLoggedIn() {
-    return !!currentUser;
+    if (USE_LOCAL_AUTH) {
+        return !!localStorage.getItem(STORAGE_SESSION);
+    }
+    return !!getAuthToken();
 }
 
 async function apiFetch(path, options = {}) {
