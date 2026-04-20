@@ -37,6 +37,9 @@ const video = document.getElementById("video");
 const output = document.getElementById("output");
 const placeholder = document.getElementById("video-placeholder");
 const playFab = document.getElementById("play-fab");
+const stopFab = document.getElementById("stop-fab");
+const introSession = document.getElementById("intro-session");
+const btnStartDemo = document.getElementById("btn-start-demo");
 
 const authModal = document.getElementById("auth-modal");
 const authBackdrop = document.getElementById("auth-modal-backdrop");
@@ -347,14 +350,7 @@ function toggleUserAccountPanel() {
 function renderAuthChrome() {
     const logged = isLoggedIn();
 
-    if (!logged) {
-        closeUserAccountPanel();
-        hideIntroSession();
-        stopCamera();
-    } else {
-        // Afficher la session d'introduction quand connecté
-        showIntroSession();
-    }
+    if (!logged) closeUserAccountPanel();
     if (userPanelEmail) userPanelEmail.textContent = getSessionEmail() || "—";
 
     // Gérer l'affichage du bouton de connexion et de la barre utilisateur
@@ -368,11 +364,6 @@ function renderAuthChrome() {
     // Cacher tous les boutons de connexion dans la page quand connecté
     document.querySelectorAll('.js-open-auth').forEach((btn) => {
         btn.style.display = logged ? "none" : "";
-    });
-
-    // Afficher/masquer le bouton Introduction dans le header
-    document.querySelectorAll('.nav-item-intro').forEach((btn) => {
-        btn.classList.toggle("is-hidden", !logged);
     });
 
     document.querySelectorAll(".js-demo-link").forEach((el) => {
@@ -435,6 +426,7 @@ function startCamera() {
             video.classList.add("is-active");
             if (placeholder) placeholder.classList.add("is-hidden");
             if (playFab) playFab.classList.add("is-hidden");
+            if (stopFab) stopFab.classList.remove("is-hidden");
             // Démarrer la vidéo explicitement
             video.play().catch(() => {});
             startSimulation();
@@ -452,11 +444,37 @@ function startCamera() {
         });
 }
 
+function stopCamera() {
+    clearSimulation();
+    if (video?.srcObject) {
+        video.srcObject.getTracks().forEach((t) => t.stop());
+        video.srcObject = null;
+    }
+    video?.classList.remove("is-active");
+    if (placeholder) placeholder.classList.remove("is-hidden");
+    if (playFab) playFab.classList.remove("is-hidden");
+    if (stopFab) stopFab.classList.add("is-hidden");
+    if (output) output.textContent = "—";
+}
+
+function showIntroSession() {
+    if (introSession) {
+        introSession.classList.remove("is-hidden");
+    }
+}
+
+function hideIntroSession() {
+    if (introSession) {
+        introSession.classList.add("is-hidden");
+    }
+}
+
 function tryDemoFromLink() {
     if (!isLoggedIn()) {
         openAuthModal("login", "Connectez-vous pour accéder à la démo.");
         return;
     }
+    showIntroSession();
     document.getElementById("intro-session")?.scrollIntoView({ behavior: "smooth" });
 }
 
