@@ -1,5 +1,33 @@
+const { Pool } = require("pg");
+
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+    console.error("[api-service] DATABASE_URL manquant.");
+    process.exit(1);
+}
+
+const pool = new Pool({
+    connectionString: DATABASE_URL,
+});
+
+/* ================= WAIT FOR DB ================= */
+async function waitForDb(maxAttempts = 30, delayMs = 1000) {
+    for (let i = 0; i < maxAttempts; i++) {
+        try {
+            await pool.query("SELECT 1");
+            console.log("[api-service] Postgres prêt");
+            return;
+        } catch (e) {
+            console.warn(`[api-service] attente DB (${i + 1}/${maxAttempts})...`);
+            await new Promise((r) => setTimeout(r, delayMs));
+        }
+    }
+    throw new Error("Postgres indisponible après plusieurs tentatives.");
+}
+
+/* ================= MIGRATIONS ================= */
 async function migrate() {
-    // USERS (corrigé pour UUID + password)
     await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
             id UUID PRIMARY KEY,
@@ -9,7 +37,6 @@ async function migrate() {
         );
     `);
 
-    // INTERPRETATION SESSIONS
     await pool.query(`
         CREATE TABLE IF NOT EXISTS interpretation_sessions (
             id UUID PRIMARY KEY,
@@ -25,7 +52,6 @@ async function migrate() {
         ON interpretation_sessions(user_email);
     `);
 
-    // TRANSLATIONS
     await pool.query(`
         CREATE TABLE IF NOT EXISTS translations (
             id UUID PRIMARY KEY,
@@ -50,3 +76,10 @@ async function migrate() {
 
     console.log("[api-service] migrations OK");
 }
+
+/* ================= EXPORT PROPRE ================= */
+module.exports = {
+    pool,
+    waitForDb,
+    migrate,
+};
