@@ -25,44 +25,36 @@ app.get("/health", async (_req, res) => {
 
 /* ================= REGISTER (FIXED) ================= */
 app.post("/auth/register", async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: "Email et password requis" });
+    }
+
     try {
-        const { email, password } = req.body;
+        const hash = await bcrypt.hash(password, 10);
 
-        if (!email || !password) {
-            return res.status(400).json({ message: "Email et password requis" });
-        }
-
-        const normalizedEmail = email.trim().toLowerCase();
-
-        // check existing user
-        const exist = await pool.query(
-            "SELECT id FROM users WHERE email=$1",
-            [normalizedEmail]
+        const result = await pool.query(
+            `INSERT INTO users (id, email, password)
+             VALUES (gen_random_uuid(), $1, $2)
+             ON CONFLICT (email) DO NOTHING
+             RETURNING id, email`,
+            [email, hash]
         );
 
-        if (exist.rows.length > 0) {
+        // ❌ déjà existant
+        if (result.rows.length === 0) {
             return res.status(409).json({ message: "Email déjà utilisé" });
         }
 
-        const hash = await bcrypt.hash(password, 10);
-
-        const id = uuidv4();
-
-        await pool.query(
-            "INSERT INTO users (id, email, password) VALUES ($1, $2, $3)",
-            [id, normalizedEmail, hash]
-        );
-
         return res.status(201).json({
             message: "Inscription réussie",
-            user: { id, email: normalizedEmail }
+            user: result.rows[0]
         });
 
     } catch (err) {
         console.error("[REGISTER ERROR]", err);
-        return res.status(500).json({
-            message: "Erreur serveur inscription"
-        });
+        return res.status(500).json({ message: "Erreur serveur" });
     }
 });
 
@@ -71,15 +63,15 @@ app.post("/auth/login", async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const normalizedEmail = email.trim().toLowerCase();
+        const cleanEmail = email.trim().toLowerCase();
 
         const result = await pool.query(
             "SELECT * FROM users WHERE email=$1",
-            [normalizedEmail]
+            [cleanEmail]
         );
 
         if (result.rows.length === 0) {
-            return res.status(401).json({ message: "Utilisateur introuvable" });
+            return res.status(401).json({ message: "User introuvable" });
         }
 
         const user = result.rows[0];
@@ -97,13 +89,17 @@ app.post("/auth/login", async (req, res) => {
         );
 
         return res.json({
+            ok: true,
             token,
-            user: { id: user.id, email: user.email }
+            user: {
+                id: user.id,
+                email: user.email
+            }
         });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Erreur login" });
+        return res.status(500).json({ message: "Erreur login" });
     }
 });
 

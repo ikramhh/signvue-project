@@ -152,23 +152,36 @@ async function apiFetch(path, options = {}) {
 }
 
 async function apiRegister(email, password) {
-    const r = await fetch(apiUrl("/auth/register"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-    });
+    try {
+        const r = await fetch(apiUrl("/auth/register"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+        });
 
-    const data = await r.json().catch(() => ({}));
+        const data = await r.json().catch(() => ({}));
 
-    if (!r.ok) {
-        return { ok: false, message: data.message || "Erreur inscription" };
+        if (!r.ok) {
+            return {
+                ok: false,
+                message: data.message || "Erreur inscription"
+            };
+        }
+
+        // IMPORTANT : session immédiate après inscription
+        localStorage.setItem(STORAGE_SESSION, data.user.email);
+
+        return {
+            ok: true,
+            message: data.message
+        };
+
+    } catch (err) {
+        return {
+            ok: false,
+            message: "Serveur indisponible"
+        };
     }
-
-    // IMPORTANT : ne ferme pas sans message
-    return { 
-        ok: true, 
-        message: data.message || "Inscription réussie"
-    };
 }
 
 async function apiLogin(email, password) {
@@ -716,9 +729,11 @@ async function bootstrap() {
                     }
                 }
                 if (!res.ok) {
-                    showAuthError(res.message);
-                    return;
-                }
+                 showAuthError(res.message || "Erreur inscription");
+               return;
+       }
+
+alert(res.message); // DEBUG IMPORTANT
                 closeAuthModal();
                 renderAuthChrome();
                 formRegister.reset();
