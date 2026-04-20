@@ -53,6 +53,7 @@ const userMenu = document.getElementById("user-menu");
 const userAccountBtn = document.getElementById("user-account-btn");
 const userAccountPanel = document.getElementById("user-account-panel");
 const userPanelEmail = document.getElementById("user-panel-email");
+const userPanelRole = document.getElementById("user-panel-role");
 const btnLogout = document.getElementById("btn-logout");
 const demoLeadDefault = document.getElementById("demo-lead-default");
 const demoLeadLogged = document.getElementById("demo-lead-logged");
@@ -109,6 +110,29 @@ function getSessionEmail() {
         return localStorage.getItem(STORAGE_SESSION);
     }
     return sessionStorage.getItem(STORAGE_SESSION);
+}
+
+async function fetchUserRole() {
+    if (USE_LOCAL_AUTH) {
+        // For local auth, just show "Utilisateur"
+        if (userPanelRole) userPanelRole.textContent = "Utilisateur";
+        return;
+    }
+
+    try {
+        const response = await apiFetch("/auth/verify");
+        if (response.ok) {
+            const data = await response.json();
+            const role = data.role || "USER";
+            const roleDisplay = role === "USER" ? "Utilisateur" : role === "ADMIN" ? "Administrateur" : role;
+            if (userPanelRole) userPanelRole.textContent = roleDisplay;
+        } else {
+            if (userPanelRole) userPanelRole.textContent = "—";
+        }
+    } catch (error) {
+        console.error("Error fetching user role:", error);
+        if (userPanelRole) userPanelRole.textContent = "—";
+    }
 }
 
 function setSessionEmail(email) {
@@ -302,6 +326,11 @@ function toggleUserAccountPanel() {
     userAccountBtn.setAttribute("aria-expanded", open ? "true" : "false");
     if (open && userPanelEmail) {
         userPanelEmail.textContent = getSessionEmail() || "—";
+        // Fetch and display user role
+        if (userPanelRole) {
+            userPanelRole.textContent = "Chargement...";
+            fetchUserRole();
+        }
     }
 }
 
