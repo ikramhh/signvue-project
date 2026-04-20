@@ -201,8 +201,8 @@ async function apiRegister(email, password) {
             };
         }
 
-        // IMPORTANT : session immédiate après inscription
-        localStorage.setItem(STORAGE_SESSION, data.user.email);
+        // Ne pas créer de session immédiatement - l'utilisateur doit vérifier son email
+        // localStorage.setItem(STORAGE_SESSION, data.user.email);
 
         return {
             ok: true,
@@ -691,13 +691,12 @@ async function bootstrap() {
                     }
                 }
                 if (!res.ok) {
-                 showAuthError(res.message || "Erreur inscription");
-               return;
-       }
+                    showAuthError(res.message || "Erreur inscription");
+                    return;
+                }
 
-alert(res.message); // DEBUG IMPORTANT
+                alert("✅ " + res.message + "\n\nVérifiez votre boîte mail (et les spams) pour activer votre compte.");
                 closeAuthModal();
-                renderAuthChrome();
                 formRegister.reset();
             });
         }

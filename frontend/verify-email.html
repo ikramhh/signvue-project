@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="signvue-api-base" content="https://signvue-api.onrender.com">
+    <title>Vérification Email - SignVue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css?v=20260420">
+    <style>
+        .verify-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            background: var(--bg-page);
+        }
+        .verify-card {
+            background: var(--white);
+            padding: 2.5rem;
+            border-radius: 1.25rem;
+            box-shadow: 0 8px 32px rgba(91, 45, 140, 0.1);
+            text-align: center;
+            max-width: 420px;
+            width: 100%;
+        }
+        .verify-card h1 {
+            color: var(--navy);
+            margin-bottom: 1rem;
+        }
+        .verify-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+        .verify-icon.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .verify-icon.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .verify-icon.loading {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        .verify-message {
+            margin-bottom: 1.5rem;
+            color: var(--text-on-light);
+            line-height: 1.6;
+        }
+        .verify-btn {
+            display: inline-block;
+            padding: 0.85rem 2rem;
+            background: var(--navy);
+            color: white;
+            text-decoration: none;
+            border-radius: 999px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .verify-btn:hover {
+            background: var(--navy-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-container">
+        <div class="verify-card">
+            <div id="verify-icon" class="verify-icon loading">⏳</div>
+            <h1 id="verify-title">Vérification en cours...</h1>
+            <p id="verify-message" class="verify-message">Veuillez patienter pendant que nous vérifions votre email.</p>
+            <a id="verify-btn" href="./index.html" class="verify-btn" style="display: none;">Retour à l'accueil</a>
+        </div>
+    </div>
+
+    <script src="./config.js?v=20260420"></script>
+    <script>
+        function getApiBase() {
+            const raw =
+                (typeof window.__SIGNVUE_API_BASE__ === "string" && window.__SIGNVUE_API_BASE__.trim()) ||
+                "";
+            const base = (raw || "https://signvue-api.onrender.com").replace(/\/$/, "");
+            return base;
+        }
+
+        function apiUrl(path) {
+            const p = String(path || "").startsWith("/") ? path : `/${path}`;
+            return `${getApiBase()}${p}`;
+        }
+
+        async function verifyEmail() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get("token");
+
+            const iconEl = document.getElementById("verify-icon");
+            const titleEl = document.getElementById("verify-title");
+            const messageEl = document.getElementById("verify-message");
+            const btnEl = document.getElementById("verify-btn");
+
+            if (!token) {
+                iconEl.textContent = "❌";
+                iconEl.className = "verify-icon error";
+                titleEl.textContent = "Token manquant";
+                messageEl.textContent = "Le lien de vérification est invalide ou incomplet.";
+                btnEl.style.display = "inline-block";
+                return;
+            }
+
+            try {
+                const response = await fetch(apiUrl(`/auth/verify-email?token=${token}`));
+                const data = await response.json();
+
+                if (response.ok) {
+                    iconEl.textContent = "✅";
+                    iconEl.className = "verify-icon success";
+                    titleEl.textContent = "Email vérifié !";
+                    messageEl.textContent = data.message || "Votre email a été vérifié avec succès. Vous pouvez maintenant vous connecter.";
+                } else {
+                    iconEl.textContent = "❌";
+                    iconEl.className = "verify-icon error";
+                    titleEl.textContent = "Échec de la vérification";
+                    messageEl.textContent = data.message || "Le lien de vérification est invalide ou a expiré.";
+                }
+            } catch (err) {
+                iconEl.textContent = "❌";
+                iconEl.className = "verify-icon error";
+                titleEl.textContent = "Erreur";
+                messageEl.textContent = "Une erreur s'est produite. Veuillez réessayer plus tard.";
+            }
+
+            btnEl.style.display = "inline-block";
+        }
+
+        verifyEmail();
+    </script>
+</body>
+</html>

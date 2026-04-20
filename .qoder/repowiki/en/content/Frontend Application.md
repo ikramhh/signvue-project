@@ -15,6 +15,8 @@
 
 ## Update Summary
 **Changes Made**
+- Enhanced navigation system with new Introduction link for improved user experience
+- Improved JavaScript DOM element access in hideIntroSession() function with better error handling
 - Enhanced authentication system with improved debugging capabilities and streamlined authentication logic
 - Better user experience for demo access with comprehensive console logging for showIntroSession()
 - Improved error handling in camera controls with enhanced feature detail panel functionality
@@ -36,7 +38,7 @@
 ## Introduction
 This document describes the Frontend Single Page Application for SignVue, focusing on the web UI architecture, authentication flow, webcam integration for sign language detection, and the demo interface. It explains state management patterns, user interaction handling, responsive design, backend integration via Traefik routing, localStorage usage for offline functionality, and configuration management. It also covers browser compatibility, accessibility considerations, and performance optimization techniques.
 
-**Updated** Enhanced authentication system with improved debugging capabilities, streamlined authentication logic, and better user experience for demo access. Added comprehensive console logging for showIntroSession(), improved error handling in camera controls, and enhanced feature detail panel functionality.
+**Updated** Enhanced navigation system with new Introduction link for improved user experience. Improved JavaScript DOM element access in hideIntroSession() function with better error handling and robust element validation.
 
 ## Project Structure
 The frontend is a static SPA served by Nginx and integrated with a microservices backend orchestrated by Traefik. The SPA consists of:
@@ -56,6 +58,7 @@ INTRO["Intro Session Panel"]
 STOPFAB["Stop-FAB Button"]
 AUTHLOGIC["Enhanced Auth Logic"]
 DEBUGLOGS["Console Debugging"]
+NAVIGATION["Enhanced Navigation"]
 END
 subgraph "Reverse Proxy"
 TRAEFIK["Traefik"]
@@ -71,6 +74,7 @@ HTML --> CSS
 HTML --> CFG
 HTML --> INTRO
 HTML --> STOPFAB
+HTML --> NAVIGATION
 JS --> AUTHLOGIC
 AUTHLOGIC --> DEBUGLOGS
 JS --> TRAEFIK
@@ -95,16 +99,16 @@ API --> WORKER
 - Introduction session panel: guided tutorial with camera setup instructions and next-step progression
 - Demo camera interface: webcam access, video preview, stop-fab button for camera termination, and simulated recognition output
 - Feature cards: expandable detail panels with animated reveal and enhanced error handling
-- Responsive navigation and accessibility: mobile-friendly navigation, keyboard support, and reduced motion preferences
+- Responsive navigation and accessibility: mobile-friendly navigation, keyboard support, and reduced motion preferences with enhanced navigation system
 - Configuration and routing: API base URL resolution and Traefik routing rules
 
 Key responsibilities:
 - script.js orchestrates UI state, user actions, intro-session flow, and API interactions with comprehensive logging
 - style.css defines responsive layouts, animations, accessibility attributes, and new intro-session/stopping styling
 - config.js resolves the API base URL from meta tag or global override
-- index.html provides the DOM structure with intro-session panel and stop-fab button
+- index.html provides the DOM structure with intro-session panel, stop-fab button, and enhanced navigation system
 
-**Updated** Enhanced introduction session panel with automatic display logic and smooth scrolling navigation. Improved authentication debugging with console logs and enhanced error handling.
+**Updated** Enhanced introduction session panel with automatic display logic and smooth scrolling navigation. Improved authentication debugging with console logs and enhanced error handling. Added new Introduction link to navigation system for better user experience.
 
 **Section sources**
 - [script.js:169-174](file://frontend/script.js#L169-L174)
@@ -170,37 +174,37 @@ UI->>UI : Console log camera cleanup
 
 ## Detailed Component Analysis
 
-### Enhanced Authentication System with Debugging Capabilities
-The SPA now includes an enhanced authentication system with comprehensive debugging capabilities:
-- Improved console logging for authentication flows with detailed request/response information
-- Streamlined authentication logic with better error handling and user feedback
-- Enhanced session validation using /auth/me endpoint for improved user experience
-- Better error messages and debugging information for developers
-- Console warnings for missing DOM elements in critical components
+### Enhanced Navigation System with Introduction Link
+The SPA now includes an enhanced navigation system with a new Introduction link for improved user experience:
+- New "Introduction" navigation item linking to the intro-session section (#intro-session)
+- Smooth scrolling to the introduction panel when clicked
+- Consistent styling with other navigation items
+- Improved accessibility with proper ARIA attributes
+- Better user onboarding experience with direct access to tutorial content
 
 ```mermaid
 flowchart TD
-Start(["User attempts login/register"]) --> LogRequest["Console log request details"]
-LogRequest --> SendAuth["Send to auth-service"]
-SendAuth --> CheckResponse{"Response OK?"}
-CheckResponse --> |No| LogError["Console log error details"]
-CheckResponse --> |Yes| StoreToken["Store JWT in localStorage/sessionStorage"]
-StoreToken --> LogSuccess["Console log success"]
-LogSuccess --> ValidateSession["Call /auth/me for validation"]
-ValidateSession --> UpdateUI["Update user panel and UI state"]
-UpdateUI --> LogComplete["Console log completion"]
+Start(["User navigates to app"]) --> NavSystem["Enhanced Navigation System"]
+NavSystem --> FeaturesLink["Fonctionnalités"]
+NavSystem --> IntroLink["Introduction"]
+NavSystem --> DemoLink["Démo"]
+IntroLink --> ScrollToIntro["Scroll to Intro Session"]
+ScrollToIntro --> ShowIntro["Show Intro Session Panel"]
+ShowIntro --> UserTips["Display camera setup tips"]
+UserTips --> NextButton["Click Next button"]
+NextButton --> HideIntro["Hide Intro Session"]
+HideIntro --> StartCamera["Start Camera with Stop-FAB"]
 ```
 
 **Diagram sources**
-- [script.js:220-235](file://frontend/script.js#L220-L235)
-- [script.js:237-251](file://frontend/script.js#L237-L251)
-- [script.js:710-712](file://frontend/script.js#L710-L712)
+- [index.html:25-29](file://frontend/index.html#L25-L29)
+- [script.js:464-475](file://frontend/script.js#L464-L475)
+- [script.js:616-622](file://frontend/script.js#L616-L622)
 
 **Section sources**
-- [script.js:220-235](file://frontend/script.js#L220-L235)
-- [script.js:237-251](file://frontend/script.js#L237-L251)
-- [script.js:710-712](file://frontend/script.js#L710-L712)
-- [services/auth-service/src/index.js:52-94](file://services/auth-service/src/index.js#L52-L94)
+- [index.html:25-29](file://frontend/index.html#L25-L29)
+- [script.js:464-475](file://frontend/script.js#L464-L475)
+- [script.js:616-622](file://frontend/script.js#L616-L622)
 
 ### Enhanced Introduction Session System
 The SPA now includes a comprehensive introduction session system designed to guide users through the camera setup process with improved user experience:
@@ -210,6 +214,7 @@ The SPA now includes a comprehensive introduction session system designed to gui
 - Automatic scrolling to demo section after clicking next
 - Responsive design with grid layout for optimal mobile experience
 - Comprehensive console logging for debugging and monitoring
+- Enhanced DOM element access with proper validation in hideIntroSession() function
 
 ```mermaid
 flowchart TD
@@ -219,7 +224,7 @@ CheckAuth --> |Yes| ShowIntro["Auto-show Intro Session Panel with logging"]
 ShowIntro --> LogElement["Console log element existence"]
 ShowIntro --> UserTips["Display camera setup tips"]
 UserTips --> NextButton["Click Next button"]
-NextButton --> HideIntro["Hide Intro Session"]
+NextButton --> HideIntro["Hide Intro Session with validation"]
 HideIntro --> LogHide["Console log hide operation"]
 HideIntro --> ScrollDemo["Smooth scroll to Demo Section"]
 ScrollDemo --> StartCamera["Start Camera with Stop-FAB"]
@@ -270,6 +275,31 @@ HideStopFab --> ResetUI["Reset UI State"]
 - [script.js:608-614](file://frontend/script.js#L608-L614)
 - [index.html:178-183](file://frontend/index.html#L178-L183)
 - [style.css:934-963](file://frontend/style.css#L934-L963)
+
+### Enhanced DOM Element Access in hideIntroSession() Function
+The hideIntroSession() function has been improved with better DOM element access and validation:
+- Proper element existence checking before manipulation
+- Robust error handling for missing DOM elements
+- Consistent with other DOM manipulation functions in the codebase
+- Enhanced debugging capabilities with console logging
+- Improved reliability in intro-session panel management
+
+```mermaid
+flowchart TD
+HideIntroSession["hideIntroSession() called"] --> GetElement["document.getElementById('intro-session')"]
+GetElement --> CheckExists{"Element exists?"}
+CheckExists --> |Yes| AddHidden["el.classList.add('is-hidden')"]
+CheckExists --> |No| SkipOperation["Skip operation (no error thrown)"]
+AddHidden --> Success["Intro session hidden successfully"]
+SkipOperation --> Success
+Success --> LogOperation["Console log operation (if needed)"]
+```
+
+**Diagram sources**
+- [script.js:471-476](file://frontend/script.js#L471-L476)
+
+**Section sources**
+- [script.js:471-476](file://frontend/script.js#L471-L476)
 
 ### Authentication Flow
 The SPA supports two modes:
@@ -367,7 +397,7 @@ SendReq --> Output["Update #output text"]
 - Tokens: JWT stored in localStorage for server-backed mode
 - UI state: toggled via CSS classes and aria-* attributes for accessibility
 - Feature detail panels: controlled by dataset and selection state with enhanced error handling
-- Intro-session state: managed separately from main UI state with automatic display logic
+- Intro-session state: managed separately from main UI state with automatic display logic and improved DOM access
 - Reduced motion: respects user preference to disable animations
 - Console logging: comprehensive debugging information for all major operations
 
@@ -424,7 +454,7 @@ UIState --> Debugging : "uses"
 - Responsive layout: CSS Grid and Flexbox for adaptive sections
 - Animations: CSS keyframes with reduced motion support
 - Accessibility: ARIA attributes, focus management, keyboard navigation, and screen reader-friendly labels
-- Navigation: Mobile hamburger menu with aria-expanded toggling
+- Navigation: Mobile hamburger menu with aria-expanded toggling and enhanced navigation system
 - Intro-session panel: Full-width responsive design with grid layout
 - Stop-fab button: Accessible floating action button with hover states
 - Console debugging: Comprehensive logging for accessibility testing and debugging
@@ -471,7 +501,7 @@ This allows flexible deployment targets without code changes.
 - Frontend depends on Traefik routing for auth-service (/auth) and api-service (/api)
 - Backend services depend on Postgres for persistence and RabbitMQ for asynchronous jobs
 - The SPA uses localStorage/sessionStorage for offline/local mode and JWT for server-backed mode
-- New dependencies: intro-session panel and stop-fab button components
+- New dependencies: intro-session panel, stop-fab button, and enhanced navigation system components
 - Enhanced debugging infrastructure with comprehensive console logging
 
 ```mermaid
@@ -487,6 +517,7 @@ ApiSvc --> MQ["RabbitMQ"]
 MQ --> Worker["worker-service"]
 IntroSession["Intro Session Panel"] --> SPA
 StopFab["Stop-FAB Button"] --> SPA
+NavSystem["Enhanced Navigation"] --> SPA
 DebugLogs["Console Logging"] --> SPA
 ```
 
@@ -511,10 +542,9 @@ DebugLogs["Console Logging"] --> SPA
 - Intro-session optimization: smooth scrolling and conditional rendering based on user state
 - Console logging optimization: selective logging for debugging without performance impact
 - Session validation optimization: efficient /auth/me endpoint usage for reliable session management
+- Enhanced DOM access optimization: improved element validation reduces unnecessary operations
 
-**Updated** Enhanced introduction session optimization with automatic display logic and smooth scrolling navigation. Improved authentication performance with streamlined session validation.
-
-[No sources needed since this section provides general guidance]
+**Updated** Enhanced introduction session optimization with automatic display logic and smooth scrolling navigation. Improved authentication performance with streamlined session validation. Enhanced DOM element access optimization in hideIntroSession() function with better error handling.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -528,21 +558,22 @@ Common issues and resolutions:
 - Authentication failures: check console logs for detailed error information
 - Session validation issues: verify /auth/me endpoint is accessible and JWT is properly formatted
 - Console debugging: use browser developer tools to monitor authentication and UI state changes
+- Navigation issues: verify Introduction link exists and points to correct section ID
+- DOM element access errors: check if intro-session element exists in DOM before manipulation
 
-**Updated** Enhanced troubleshooting for introduction session and stop-fab functionality. Added authentication debugging guidance and console logging troubleshooting steps.
+**Updated** Enhanced troubleshooting for introduction session and stop-fab functionality. Added authentication debugging guidance and console logging troubleshooting steps. Added navigation system troubleshooting for Introduction link issues.
 
 **Section sources**
 - [script.js:437-440](file://frontend/script.js#L437-L440)
 - [config.js:7-17](file://frontend/config.js#L7-L17)
 - [script.js:484-506](file://frontend/script.js#L484-L506)
 - [script.js:509-541](file://frontend/script.js#L509-L541)
+- [index.html:25-29](file://frontend/index.html#L25-L29)
 
 ## Conclusion
-The SignVue frontend delivers a responsive, accessible SPA with robust authentication, seamless webcam integration, and a simulated recognition pipeline. Its modular architecture, clear state management, and Traefik-driven routing enable easy deployment and maintenance across environments. The addition of the comprehensive introduction session system, enhanced camera control with stop functionality, and improved user onboarding experience significantly enhances the overall user experience. The combination of server-backed JWT and local storage modes provides flexibility for development and production scenarios. The enhanced debugging capabilities with comprehensive console logging provide excellent developer experience and troubleshooting support.
+The SignVue frontend delivers a responsive, accessible SPA with robust authentication, seamless webcam integration, and a simulated recognition pipeline. Its modular architecture, clear state management, and Traefik-driven routing enable easy deployment and maintenance across environments. The addition of the comprehensive introduction session system, enhanced camera control with stop functionality, and improved user onboarding experience significantly enhances the overall user experience. The combination of server-backed JWT and local storage modes provides flexibility for development and production scenarios. The enhanced debugging capabilities with comprehensive console logging provide excellent developer experience and troubleshooting support. The new Introduction link in the navigation system improves user accessibility and onboarding experience.
 
-**Updated** Enhanced conclusion to reflect the new introduction session system with automatic display logic, improved authentication debugging, and streamlined user experience features.
-
-[No sources needed since this section summarizes without analyzing specific files]
+**Updated** Enhanced conclusion to reflect the new introduction session system with automatic display logic, improved authentication debugging, streamlined user experience features, and enhanced navigation system with new Introduction link for better user accessibility.
 
 ## Appendices
 
@@ -574,9 +605,12 @@ The SPA includes comprehensive console logging for debugging and monitoring:
 - Camera operations: start/stop and error handling logging
 - Session management: validation and cleanup operations
 - Error handling: detailed error messages and debugging information
+- Navigation system: element access validation and smooth scrolling operations
+- DOM manipulation: enhanced element access with proper validation
 
 **Section sources**
 - [script.js:220-235](file://frontend/script.js#L220-L235)
 - [script.js:460-475](file://frontend/script.js#L460-L475)
 - [script.js:441-445](file://frontend/script.js#L441-L445)
 - [script.js:710-712](file://frontend/script.js#L710-L712)
+- [script.js:471-476](file://frontend/script.js#L471-L476)
