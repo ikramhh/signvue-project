@@ -37,6 +37,9 @@ const video = document.getElementById("video");
 const output = document.getElementById("output");
 const placeholder = document.getElementById("video-placeholder");
 const playFab = document.getElementById("play-fab");
+const stopFab = document.getElementById("stop-fab");
+const introSession = document.getElementById("intro-session");
+const btnStartDemo = document.getElementById("btn-start-demo");
 
 const authModal = document.getElementById("auth-modal");
 const authBackdrop = document.getElementById("auth-modal-backdrop");
@@ -347,7 +350,11 @@ function toggleUserAccountPanel() {
 function renderAuthChrome() {
     const logged = isLoggedIn();
 
-    if (!logged) closeUserAccountPanel();
+    if (!logged) {
+        closeUserAccountPanel();
+        hideIntroSession();
+        stopCamera();
+    }
     if (userPanelEmail) userPanelEmail.textContent = getSessionEmail() || "—";
 
     // Gérer l'affichage du bouton de connexion et de la barre utilisateur
@@ -423,6 +430,7 @@ function startCamera() {
             video.classList.add("is-active");
             if (placeholder) placeholder.classList.add("is-hidden");
             if (playFab) playFab.classList.add("is-hidden");
+            if (stopFab) stopFab.classList.remove("is-hidden");
             // Démarrer la vidéo explicitement
             video.play().catch(() => {});
             startSimulation();
@@ -440,13 +448,38 @@ function startCamera() {
         });
 }
 
+function stopCamera() {
+    clearSimulation();
+    if (video?.srcObject) {
+        video.srcObject.getTracks().forEach((t) => t.stop());
+        video.srcObject = null;
+    }
+    video?.classList.remove("is-active");
+    if (placeholder) placeholder.classList.remove("is-hidden");
+    if (playFab) playFab.classList.remove("is-hidden");
+    if (stopFab) stopFab.classList.add("is-hidden");
+    if (output) output.textContent = "—";
+}
+
+function showIntroSession() {
+    if (introSession) {
+        introSession.classList.remove("is-hidden");
+        introSession.scrollIntoView({ behavior: "smooth" });
+    }
+}
+
+function hideIntroSession() {
+    if (introSession) {
+        introSession.classList.add("is-hidden");
+    }
+}
+
 function tryDemoFromLink() {
     if (!isLoggedIn()) {
         openAuthModal("login", "Connectez-vous pour accéder à la démo.");
         return;
     }
-    document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" });
-    window.setTimeout(() => startCamera(), 450);
+    showIntroSession();
 }
 
 // Event listeners are now attached in bootstrap() function
@@ -576,6 +609,18 @@ async function bootstrap() {
             playFab.addEventListener("click", () => startCamera());
         }
 
+        if (stopFab) {
+            stopFab.addEventListener("click", () => stopCamera());
+        }
+
+        if (btnStartDemo) {
+            btnStartDemo.addEventListener("click", () => {
+                hideIntroSession();
+                document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" });
+                window.setTimeout(() => startCamera(), 450);
+            });
+        }
+
         if (authClose) authClose.addEventListener("click", closeAuthModal);
         if (authBackdrop) authBackdrop.addEventListener("click", closeAuthModal);
 
@@ -680,15 +725,8 @@ alert(res.message); // DEBUG IMPORTANT
                 e.stopPropagation();
                 closeUserAccountPanel();
                 clearSession();
-                clearSimulation();
-                if (video?.srcObject) {
-                    video.srcObject.getTracks().forEach((t) => t.stop());
-                    video.srcObject = null;
-                }
-                video?.classList.remove("is-active");
-                if (placeholder) placeholder.classList.remove("is-hidden");
-                if (playFab) playFab.classList.remove("is-hidden");
-                if (output) output.textContent = "—";
+                stopCamera();
+                hideIntroSession();
                 renderAuthChrome();
             });
         }

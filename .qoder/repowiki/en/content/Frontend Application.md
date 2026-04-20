@@ -1,0 +1,366 @@
+# Frontend Application
+
+<cite>
+**Referenced Files in This Document**
+- [index.html](file://frontend/index.html)
+- [script.js](file://frontend/script.js)
+- [style.css](file://frontend/style.css)
+- [config.js](file://frontend/config.js)
+- [docker-compose.yml](file://docker-compose.yml)
+- [README.md](file://README.md)
+- [auth-service/src/index.js](file://services/auth-service/src/index.js)
+- [api-service/src/index.js](file://services/api-service/src/index.js)
+- [infra/init-db.sql](file://infra/init-db.sql)
+</cite>
+
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Project Structure](#project-structure)
+3. [Core Components](#core-components)
+4. [Architecture Overview](#architecture-overview)
+5. [Detailed Component Analysis](#detailed-component-analysis)
+6. [Dependency Analysis](#dependency-analysis)
+7. [Performance Considerations](#performance-considerations)
+8. [Troubleshooting Guide](#troubleshooting-guide)
+9. [Conclusion](#conclusion)
+10. [Appendices](#appendices)
+
+## Introduction
+This document describes the Frontend Single Page Application for SignVue, focusing on the web UI architecture, authentication flow, webcam integration for sign language detection, and the demo interface. It explains state management patterns, user interaction handling, responsive design, backend integration via Traefik routing, localStorage usage for offline functionality, and configuration management. It also covers browser compatibility, accessibility considerations, and performance optimization techniques.
+
+## Project Structure
+The frontend is a static SPA served by Nginx and integrated with a microservices backend orchestrated by Traefik. The SPA consists of:
+- index.html: markup for the UI, including authentication modal, feature cards, and demo camera area
+- script.js: client-side logic for authentication, session management, webcam access, demo simulation, and UI interactions
+- style.css: responsive styles, animations, and component layouts
+- config.js: runtime configuration resolution for the API base URL
+
+```mermaid
+graph TB
+subgraph "Frontend"
+HTML["index.html"]
+JS["script.js"]
+CSS["style.css"]
+CFG["config.js"]
+end
+subgraph "Reverse Proxy"
+TRAEFIK["Traefik"]
+end
+subgraph "Backend Services"
+AUTH["auth-service"]
+API["api-service"]
+WORKER["worker-service"]
+PG["Postgres"]
+end
+HTML --> JS
+HTML --> CSS
+HTML --> CFG
+JS --> TRAEFIK
+TRAEFIK --> AUTH
+TRAEFIK --> API
+API --> PG
+API --> WORKER
+```
+
+**Diagram sources**
+- [docker-compose.yml:118-131](file://docker-compose.yml#L118-L131)
+- [index.html:17-222](file://frontend/index.html#L17-L222)
+- [script.js:23-34](file://frontend/script.js#L23-L34)
+
+**Section sources**
+- [docker-compose.yml:118-131](file://docker-compose.yml#L118-L131)
+- [index.html:17-222](file://frontend/index.html#L17-L222)
+- [script.js:23-34](file://frontend/script.js#L23-L34)
+
+## Core Components
+- Authentication and session management: login/register forms, JWT handling, user panel, and role display
+- Demo camera interface: webcam access, video preview, and simulated recognition output
+- Feature cards: expandable detail panels with animated reveal
+- Responsive navigation and accessibility: mobile-friendly navigation, keyboard support, and reduced motion preferences
+- Configuration and routing: API base URL resolution and Traefik routing rules
+
+Key responsibilities:
+- script.js orchestrates UI state, user actions, and API interactions
+- style.css defines responsive layouts, animations, and accessibility attributes
+- config.js resolves the API base URL from meta tag or global override
+- index.html provides the DOM structure and accessibility landmarks
+
+**Section sources**
+- [script.js:169-174](file://frontend/script.js#L169-L174)
+- [script.js:409-441](file://frontend/script.js#L409-L441)
+- [script.js:605-629](file://frontend/script.js#L605-L629)
+- [style.css:316-482](file://frontend/style.css#L316-L482)
+- [config.js:7-17](file://frontend/config.js#L7-L17)
+- [index.html:19-57](file://frontend/index.html#L19-L57)
+
+## Architecture Overview
+The SPA communicates with backend services through Traefik, which routes requests to auth-service and api-service based on host and path prefixes. The frontend uses localStorage for offline sessions and sessionStorage for server-backed sessions. The demo camera flow triggers an interpretation request to the backend queue.
+
+```mermaid
+sequenceDiagram
+participant U as "User"
+participant UI as "SPA (script.js)"
+participant AUTH as "auth-service"
+participant API as "api-service"
+participant MQ as "RabbitMQ"
+participant W as "worker-service"
+U->>UI : Open app
+UI->>UI : Resolve API base URL (config.js)
+U->>UI : Click Login/Register
+UI->>AUTH : POST /auth/login or /auth/register
+AUTH-->>UI : { token }
+UI->>UI : Store token in localStorage/sessionStorage
+U->>UI : Click Demo Camera
+UI->>API : POST /api/interpretation-requests (with Bearer)
+API->>MQ : Publish job
+MQ-->>W : Consume job
+W-->>API : Logs/console
+API-->>UI : 202 Accepted
+UI->>UI : Simulate recognition output
+```
+
+**Diagram sources**
+- [config.js:7-17](file://frontend/config.js#L7-L17)
+- [script.js:176-182](file://frontend/script.js#L176-L182)
+- [script.js:217-232](file://frontend/script.js#L217-L232)
+- [script.js:429-435](file://frontend/script.js#L429-L435)
+- [docker-compose.yml:70-105](file://docker-compose.yml#L70-L105)
+
+**Section sources**
+- [README.md:17-23](file://README.md#L17-L23)
+- [docker-compose.yml:70-105](file://docker-compose.yml#L70-L105)
+- [script.js:176-182](file://frontend/script.js#L176-L182)
+- [script.js:217-232](file://frontend/script.js#L217-L232)
+- [script.js:429-435](file://frontend/script.js#L429-L435)
+
+## Detailed Component Analysis
+
+### Authentication Flow
+The SPA supports two modes:
+- Server-backed JWT mode: authenticates against auth-service, stores JWT in localStorage, and verifies sessions on boot
+- Local storage mode (?local=1): uses localStorage for accounts and session without backend
+
+Key flows:
+- Login/Register forms submit credentials to backend endpoints
+- On success, the SPA stores the JWT and sets the session email
+- The user panel displays the email and role (fetched via /auth/verify in server-backed mode)
+- Logout clears session and stops the camera stream
+
+```mermaid
+sequenceDiagram
+participant U as "User"
+participant UI as "SPA (script.js)"
+participant AUTH as "auth-service"
+participant LS as "localStorage/sessionStorage"
+U->>UI : Submit Login/Register
+UI->>AUTH : POST /auth/login or /auth/register
+AUTH-->>UI : { token } or { user }
+UI->>LS : Save token and session email
+UI->>UI : renderAuthChrome()
+U->>UI : Open User Panel
+UI->>AUTH : GET /auth/verify (Bearer)
+AUTH-->>UI : { role }
+UI->>UI : Update panel role
+```
+
+**Diagram sources**
+- [script.js:184-232](file://frontend/script.js#L184-L232)
+- [script.js:121-142](file://frontend/script.js#L121-L142)
+- [script.js:347-380](file://frontend/script.js#L347-L380)
+- [auth-service/src/index.js:52-94](file://services/auth-service/src/index.js#L52-L94)
+
+**Section sources**
+- [script.js:169-174](file://frontend/script.js#L169-L174)
+- [script.js:184-232](file://frontend/script.js#L184-L232)
+- [script.js:121-142](file://frontend/script.js#L121-L142)
+- [script.js:347-380](file://frontend/script.js#L347-L380)
+- [auth-service/src/index.js:52-94](file://services/auth-service/src/index.js#L52-L94)
+
+### Demo Camera and Recognition Simulation
+The demo camera integrates with the webcam and simulates recognition output:
+- Requires authentication to start
+- Requests camera permission and starts the video stream
+- Displays a placeholder until playback begins
+- Starts a periodic simulation of recognized words
+- Sends an interpretation request to the backend when started
+
+```mermaid
+flowchart TD
+Start(["User clicks Demo"]) --> CheckAuth{"Authenticated?"}
+CheckAuth --> |No| OpenAuth["Open Auth Modal"]
+CheckAuth --> |Yes| GetUserMedia["navigator.mediaDevices.getUserMedia"]
+GetUserMedia --> StreamOK{"Stream OK?"}
+StreamOK --> |No| ShowError["Show 'Access denied'"]
+StreamOK --> |Yes| PlayVideo["Set srcObject and play()"]
+PlayVideo --> SimStart["Start simulation interval"]
+SimStart --> SendReq["POST /api/interpretation-requests (optional)"]
+SendReq --> Output["Update #output text"]
+```
+
+**Diagram sources**
+- [script.js:409-441](file://frontend/script.js#L409-L441)
+- [script.js:398-407](file://frontend/script.js#L398-L407)
+- [script.js:429-435](file://frontend/script.js#L429-L435)
+
+**Section sources**
+- [script.js:409-441](file://frontend/script.js#L409-L441)
+- [script.js:398-407](file://frontend/script.js#L398-L407)
+- [script.js:429-435](file://frontend/script.js#L429-L435)
+
+### State Management Patterns
+- Session state: stored in localStorage (local mode) or sessionStorage (server-backed), with migration logic
+- Tokens: JWT stored in localStorage for server-backed mode
+- UI state: toggled via CSS classes and aria-* attributes for accessibility
+- Feature detail panels: controlled by dataset and selection state
+- Reduced motion: respects user preference to disable animations
+
+```mermaid
+classDiagram
+class Session {
++isLoggedIn() bool
++setSessionEmail(email) void
++clearSession() void
++getAuthToken() string
+}
+class UIState {
++renderAuthChrome() void
++openFeatureDetailPanel(id) void
++closeFeatureDetailPanel() void
++toggleUserAccountPanel() void
+}
+class Storage {
++getAccounts() Account[]
++saveAccounts(Account[]) void
++getSessionEmail() string
+}
+Session --> Storage : "reads/writes"
+UIState --> Session : "reads"
+UIState --> Storage : "reads"
+```
+
+**Diagram sources**
+- [script.js:94-112](file://frontend/script.js#L94-L112)
+- [script.js:144-158](file://frontend/script.js#L144-L158)
+- [script.js:347-380](file://frontend/script.js#L347-L380)
+- [script.js:588-603](file://frontend/script.js#L588-L603)
+
+**Section sources**
+- [script.js:94-112](file://frontend/script.js#L94-L112)
+- [script.js:144-158](file://frontend/script.js#L144-L158)
+- [script.js:347-380](file://frontend/script.js#L347-L380)
+- [script.js:588-603](file://frontend/script.js#L588-L603)
+
+### Responsive Design and Accessibility
+- Responsive layout: CSS Grid and Flexbox for adaptive sections
+- Animations: CSS keyframes with reduced motion support
+- Accessibility: ARIA attributes, focus management, keyboard navigation, and screen reader-friendly labels
+- Navigation: Mobile hamburger menu with aria-expanded toggling
+
+```mermaid
+flowchart TD
+Load(["Page Load"]) --> CheckReduced["Check prefers-reduced-motion"]
+CheckReduced --> |Prefers| DisableAnim["Disable animations"]
+CheckReduced --> |Not Prefers| EnableAnim["Enable animations"]
+EnableAnim --> Observe["IntersectionObserver reveal"]
+DisableAnim --> Observe
+Observe --> ApplyClasses["Add is-visible classes"]
+```
+
+**Diagram sources**
+- [style.css:573-598](file://frontend/style.css#L573-L598)
+- [script.js:655-692](file://frontend/script.js#L655-L692)
+
+**Section sources**
+- [style.css:573-598](file://frontend/style.css#L573-L598)
+- [script.js:655-692](file://frontend/script.js#L655-L692)
+
+### Configuration Management
+The API base URL is resolved from:
+- window.__SIGNVUE_API_BASE__ override
+- meta[name="signvue-api-base"] content
+- Default fallback to a hosted backend
+
+This allows flexible deployment targets without code changes.
+
+**Section sources**
+- [config.js:7-17](file://frontend/config.js#L7-L17)
+- [index.html:6-7](file://frontend/index.html#L6-L7)
+- [script.js:23-34](file://frontend/script.js#L23-L34)
+
+## Dependency Analysis
+- Frontend depends on Traefik routing for auth-service (/auth) and api-service (/api)
+- Backend services depend on Postgres for persistence and RabbitMQ for asynchronous jobs
+- The SPA uses localStorage/sessionStorage for offline/local mode and JWT for server-backed mode
+
+```mermaid
+graph LR
+Browser["Browser"] --> SPA["SPA (script.js)"]
+SPA --> Config["config.js"]
+SPA --> AuthAPI["/auth/*"]
+SPA --> ApiAPI["/api/*"]
+AuthAPI --> AuthSvc["auth-service"]
+ApiAPI --> ApiSvc["api-service"]
+ApiSvc --> DB["Postgres"]
+ApiSvc --> MQ["RabbitMQ"]
+MQ --> Worker["worker-service"]
+```
+
+**Diagram sources**
+- [docker-compose.yml:70-105](file://docker-compose.yml#L70-L105)
+- [script.js:176-182](file://frontend/script.js#L176-L182)
+- [auth-service/src/index.js:12-94](file://services/auth-service/src/index.js#L12-L94)
+- [api-service/src/index.js:16-121](file://services/api-service/src/index.js#L16-L121)
+
+**Section sources**
+- [docker-compose.yml:70-105](file://docker-compose.yml#L70-L105)
+- [script.js:176-182](file://frontend/script.js#L176-L182)
+- [auth-service/src/index.js:12-94](file://services/auth-service/src/index.js#L12-L94)
+- [api-service/src/index.js:16-121](file://services/api-service/src/index.js#L16-L121)
+
+## Performance Considerations
+- Animation budget: reduced motion preference disables heavy animations
+- Lazy initialization: IntersectionObserver defers reveal animations until elements are near viewport
+- Minimal DOM updates: toggling CSS classes and dataset attributes reduces reflows
+- Efficient event handling: delegated listeners and requestAnimationFrame for UI updates
+- Camera optimization: explicit play() and track stopping on logout to release resources
+
+[No sources needed since this section provides general guidance]
+
+## Troubleshooting Guide
+Common issues and resolutions:
+- Camera access denied: ensure HTTPS or localhost origin and that the user grants permission
+- API base URL mismatch: verify meta tag or window override for the API base
+- Network errors during login/register: confirm backend services are healthy and Traefik routes are configured
+- Session not persisting: check localStorage/sessionStorage availability and browser privacy settings
+- Demo locked behind authentication: click “Connexion” to open the modal and log in
+
+**Section sources**
+- [script.js:437-440](file://frontend/script.js#L437-L440)
+- [config.js:7-17](file://frontend/config.js#L7-L17)
+- [script.js:484-506](file://frontend/script.js#L484-L506)
+- [script.js:509-541](file://frontend/script.js#L509-L541)
+
+## Conclusion
+The SignVue frontend delivers a responsive, accessible SPA with robust authentication, seamless webcam integration, and a simulated recognition pipeline. Its modular architecture, clear state management, and Traefik-driven routing enable easy deployment and maintenance across environments. The combination of server-backed JWT and local storage modes provides flexibility for development and production scenarios.
+
+[No sources needed since this section summarizes without analyzing specific files]
+
+## Appendices
+
+### API Endpoints Used by the SPA
+- POST /auth/register — registers a new user
+- POST /auth/login — authenticates and returns a JWT
+- GET /auth/verify — verifies JWT and returns decoded payload
+- POST /api/interpretation-requests — submits a recognition request
+
+**Section sources**
+- [auth-service/src/index.js:12-94](file://services/auth-service/src/index.js#L12-L94)
+- [api-service/src/index.js:26-121](file://services/api-service/src/index.js#L26-L121)
+
+### Data Model References
+- Users table with email, password hash, role, timestamps
+- Refresh tokens table for optional refresh token management
+- Interpretation sessions and translations tables for historical data
+
+**Section sources**
+- [infra/init-db.sql:3-44](file://infra/init-db.sql#L3-L44)
