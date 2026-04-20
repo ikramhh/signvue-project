@@ -704,35 +704,64 @@ async function bootstrap() {
         }
 
         if (formRegister) {
-            formRegister.addEventListener("submit", async (e) => {
-                e.preventDefault();
-                clearAuthError();
-                const email = document.getElementById("reg-email")?.value || "";
-                const p1 = document.getElementById("reg-password")?.value || "";
-                const p2 = document.getElementById("reg-password2")?.value || "";
-                if (p1.length < 6) {
-                    showAuthError("Le mot de passe doit contenir au moins 6 caractères.");
-                    return;
-                }
-                if (p1 !== p2) {
-                    showAuthError("Les mots de passe ne correspondent pas.");
-                    return;
-                }
-                let res;
-                if (USE_LOCAL_AUTH) {
-                    res = registerAccount(email, p1);
-                } else {
-                    try {
-                        res = await apiRegister(email, p1);
-                    } catch {
-                        res = { ok: false, message: "Serveur injoignable. Vérifiez l’URL API (config) ou utilisez ?local=1." };
-                    }
-                }
-                if (!res.ok) {
-                 showAuthError(res.message || "Erreur inscription");
-               return;
-       }
 
+    let isRegistering = false;
+
+    formRegister.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        if (isRegistering) return;
+        isRegistering = true;
+
+        const btn = formRegister.querySelector("button");
+        btn.disabled = true;
+
+        clearAuthError();
+
+        try {
+            const email = document.getElementById("reg-email")?.value || "";
+            const p1 = document.getElementById("reg-password")?.value || "";
+            const p2 = document.getElementById("reg-password2")?.value || "";
+
+            if (p1.length < 6) {
+                showAuthError("Le mot de passe doit contenir au moins 6 caractères.");
+                return;
+            }
+
+            if (p1 !== p2) {
+                showAuthError("Les mots de passe ne correspondent pas.");
+                return;
+            }
+
+            let res;
+
+            if (USE_LOCAL_AUTH) {
+                res = registerAccount(email, p1);
+            } else {
+                res = await apiRegister(email, p1);
+            }
+
+            if (!res.ok) {
+                showAuthError(res.message);
+                return;
+            }
+
+            showAuthError("Inscription réussie 🎉");
+
+            setTimeout(() => {
+                closeAuthModal();
+                renderAuthChrome();
+                formRegister.reset();
+            }, 800);
+
+        } catch (err) {
+            showAuthError("Erreur serveur");
+        } finally {
+            isRegistering = false;
+            btn.disabled = false;
+        }
+    });
+}
 alert(res.message); // DEBUG IMPORTANT
                 closeAuthModal();
                 renderAuthChrome();
