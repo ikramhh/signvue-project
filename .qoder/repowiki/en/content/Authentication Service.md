@@ -5,10 +5,21 @@
 - [package.json](file://services/auth-service/package.json)
 - [index.js](file://services/auth-service/src/index.js)
 - [db.js](file://services/auth-service/src/db.js)
+- [index.js](file://services/api-service/src/index.js)
 - [docker-compose.yml](file://docker-compose.yml)
 - [init-db.sql](file://infra/init-db.sql)
 - [README.md](file://README.md)
+- [script.js](file://frontend/script.js)
+- [config.js](file://frontend/config.js)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated frontend authentication system with enhanced `renderAuthChrome()` logic
+- Added comprehensive logging capabilities for authentication flows
+- Enhanced demo access with local authentication mode support
+- Improved user experience for authenticated/unauthenticated states
+- Added missing `/auth/me` endpoint documentation for API service
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -16,16 +27,17 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
+6. [Frontend Authentication System](#frontend-authentication-system)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
 
 ## Introduction
-This document describes the Authentication Service responsible for user registration, login, and JWT-based authentication. It explains the JWT token generation and verification flows, password hashing with bcryptjs, database schema for user management, and integration with the API gateway and frontend. It also covers environment configuration, security considerations, and operational guidance.
+This document describes the Authentication Service responsible for user registration, login, and JWT-based authentication. It explains the JWT token generation and verification flows, password hashing with bcryptjs, database schema for user management, and integration with the API gateway and frontend. It also covers environment configuration, security considerations, and operational guidance. The system now includes enhanced frontend authentication chrome rendering, comprehensive logging capabilities, and demo access support.
 
 ## Project Structure
-The Authentication Service is implemented as a Node.js/Express application packaged as a containerized microservice. It exposes three primary endpoints under the /auth prefix and integrates with a shared JWT secret and a PostgreSQL database initialized by the provided SQL schema.
+The Authentication Service is implemented as a Node.js/Express application packaged as a containerized microservice. It exposes three primary endpoints under the /auth prefix and integrates with a shared JWT secret and a PostgreSQL database initialized by the provided SQL schema. The frontend authentication system supports both remote API authentication and local demo mode.
 
 ```mermaid
 graph TB
@@ -34,14 +46,19 @@ subgraph "auth-service"
 A_Index["src/index.js<br/>Express server"]
 A_DB["src/db.js<br/>PostgreSQL connection"]
 end
+subgraph "API Service"
+API_Index["src/index.js<br/>/auth/me endpoint"]
+end
 PG["PostgreSQL"]
 end
 A_Index --> A_DB
 A_DB --> PG
+API_Index --> A_DB
 ```
 
 **Diagram sources**
 - [index.js:1-124](file://services/auth-service/src/index.js#L1-L124)
+- [index.js:106-121](file://services/api-service/src/index.js#L106-L121)
 - [db.js:1-13](file://services/auth-service/src/db.js#L1-L13)
 
 **Section sources**
@@ -56,6 +73,7 @@ A_DB --> PG
   - POST /auth/register: Registers a new user after validating input and checking uniqueness.
   - POST /auth/login: Authenticates a user and issues a signed JWT.
   - GET /auth/verify: Verifies a JWT passed in Authorization header.
+- **New**: GET /auth/me: Retrieves authenticated user information (in API service).
 
 Key implementation references:
 - Route handlers and middleware: [index.js:10-124](file://services/auth-service/src/index.js#L10-L124)
@@ -68,24 +86,28 @@ Key implementation references:
 - [package.json:1-18](file://services/auth-service/package.json#L1-L18)
 
 ## Architecture Overview
-The Authentication Service participates in a multi-service deployment orchestrated by Docker Compose. Traefik routes requests to the auth-service for /auth endpoints. The service relies on a shared JWT_SECRET and a PostgreSQL instance initialized by init-db.sql.
+The Authentication Service participates in a multi-service deployment orchestrated by Docker Compose. Traefik routes requests to the auth-service for /auth endpoints. The service relies on a shared JWT_SECRET and a PostgreSQL instance initialized by init-db.sql. The frontend supports both remote authentication via the auth-service and local demo mode.
 
 ```mermaid
 graph TB
 Client["Client Browser"]
 Traefik["Traefik Router"]
 AuthSvc["auth-service<br/>src/index.js"]
+APIService["api-service<br/>src/index.js"]
 DB[("PostgreSQL")]
 InitSQL["infra/init-db.sql"]
 Client --> Traefik
 Traefik --> AuthSvc
+Traefik --> APIService
 AuthSvc --> DB
+APIService --> DB
 DB <-- InitSQL --> DB
 ```
 
 **Diagram sources**
 - [docker-compose.yml:4-137](file://docker-compose.yml#L4-L137)
 - [index.js:10-124](file://services/auth-service/src/index.js#L10-L124)
+- [index.js:106-121](file://services/api-service/src/index.js#L106-L121)
 - [init-db.sql:1-44](file://infra/init-db.sql#L1-L44)
 
 **Section sources**
@@ -260,11 +282,16 @@ timestamptz created_at
   - Headers: Authorization: Bearer <token>
   - Response: Decoded JWT claims or { message }
   - Status Codes: 200, 401
+- **New**: GET /auth/me
+  - Headers: Authorization: Bearer <token>
+  - Response: Decoded JWT claims with user information
+  - Status Codes: 200, 401
 
 Note: The verify endpoint reads Authorization header and verifies the JWT using the shared secret.
 
 **Section sources**
 - [index.js:13-112](file://services/auth-service/src/index.js#L13-L112)
+- [index.js:106-121](file://services/api-service/src/index.js#L106-L121)
 
 ### Authentication Middleware
 - Header Parsing: Extracts Authorization header and ensures it starts with "Bearer ".
@@ -288,6 +315,57 @@ OK --> |No| E401b["401 Token invalid"]
 
 **Section sources**
 - [index.js:97-112](file://services/auth-service/src/index.js#L97-L112)
+
+## Frontend Authentication System
+
+### Enhanced Authentication Chrome Rendering
+The frontend authentication system has been significantly improved with a streamlined `renderAuthChrome()` function that provides better user experience for authenticated and unauthenticated states.
+
+**Key Features:**
+- **Streamlined Logic**: Simplified conditional rendering for login/logout buttons
+- **Enhanced State Management**: Improved handling of user account panels and navigation
+- **Demo Mode Support**: Special handling for local authentication mode (`?local=1`)
+- **Accessibility**: Proper ARIA attributes and keyboard navigation support
+
+### Comprehensive Logging Capabilities
+The frontend authentication system now includes extensive console logging for debugging and monitoring authentication flows.
+
+**Logging Features:**
+- **Registration Flow**: Console logs for registration attempts and responses
+- **Login Flow**: Detailed logging for login requests, responses, and errors
+- **Session Validation**: Logging for server-side session validation
+- **Demo Access**: Debug information for local authentication mode
+
+### Demo Access and Local Authentication
+The frontend supports both remote authentication and local demo mode for testing and development purposes.
+
+**Local Authentication Features:**
+- **Demo Accounts**: Pre-configured demo accounts for testing
+- **Local Storage**: Session persistence using localStorage instead of JWT tokens
+- **Role Simulation**: Automatic role assignment for demo users
+- **Mode Switching**: Toggle between local and remote authentication using `?local=1`
+
+```mermaid
+flowchart TD
+Start(["Frontend Authentication"]) --> Mode{"USE_LOCAL_AUTH ?"}
+Mode --> |Yes| Local["Local Authentication Mode"]
+Mode --> |No| Remote["Remote Authentication Mode"]
+Local --> DemoAccounts["Demo Accounts<br/>demo@example.com / admin@example.com"]
+Local --> LocalStorage["Session in localStorage"]
+Remote --> JWT["JWT Token Authentication"]
+Remote --> Server["auth-service /api-service"]
+```
+
+**Diagram sources**
+- [script.js:6](file://frontend/script.js#L6)
+- [script.js:97-111](file://frontend/script.js#L97-L111)
+- [script.js:172-177](file://frontend/script.js#L172-L177)
+
+**Section sources**
+- [script.js:350-383](file://frontend/script.js#L350-L383)
+- [script.js:220-235](file://frontend/script.js#L220-L235)
+- [script.js:237-251](file://frontend/script.js#L237-L251)
+- [script.js:97-111](file://frontend/script.js#L97-L111)
 
 ## Dependency Analysis
 External libraries used by the Authentication Service:
@@ -323,8 +401,7 @@ Pkg --> CORS
 - Database queries: Single-row lookups by email are efficient with proper indexing.
 - Token lifetime: Short-lived tokens reduce risk and require clients to manage refresh strategies.
 - Connection pooling: The PostgreSQL pool is configured via DATABASE_URL; ensure appropriate pool sizing for load.
-
-[No sources needed since this section provides general guidance]
+- **Frontend Optimization**: Local authentication mode reduces network overhead for demo purposes.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -334,15 +411,21 @@ Common issues and resolutions:
 - 401 Unauthorized on login: Verify email/password correctness and that the user exists.
 - 409 Conflict on register: Email already exists; choose another email.
 - 401 on verify: Missing or malformed Authorization header; ensure "Bearer <token>" format.
+- **Frontend Issues**: 
+  - Local authentication mode not working: Check `?local=1` parameter in URL.
+  - Demo accounts not loading: Verify localStorage permissions.
+  - Console errors: Enable browser developer tools for detailed logging.
 
 Operational checks:
 - Confirm auth-service health endpoint responds.
 - Validate PostgreSQL connectivity and schema initialization.
+- **Frontend Checks**: Verify authentication chrome renders correctly for both authenticated and unauthenticated states.
 
 **Section sources**
 - [db.js:3-7](file://services/auth-service/src/db.js#L3-L7)
 - [docker-compose.yml:61-64](file://docker-compose.yml#L61-L64)
 - [index.js:115-117](file://services/auth-service/src/index.js#L115-L117)
+- [script.js:350-383](file://frontend/script.js#L350-L383)
 
 ## Conclusion
-The Authentication Service provides a minimal yet robust foundation for user registration, login, and JWT verification. It leverages bcryptjs for secure password handling, a shared JWT secret for token validation, and a PostgreSQL-backed schema supporting roles and optional refresh tokens. For production, ensure secure secret management, implement token refresh, and consider adding rate limiting and audit logging.
+The Authentication Service provides a minimal yet robust foundation for user registration, login, and JWT verification. It leverages bcryptjs for secure password handling, a shared JWT secret for token validation, and a PostgreSQL-backed schema supporting roles and optional refresh tokens. The enhanced frontend authentication system now includes comprehensive logging, streamlined chrome rendering, and demo access capabilities. For production, ensure secure secret management, implement token refresh, and consider adding rate limiting and audit logging. The dual-mode authentication system (remote and local) provides flexibility for both production deployments and development/testing scenarios.

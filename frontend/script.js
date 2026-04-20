@@ -469,8 +469,9 @@ function showIntroSession() {
 }
 
 function hideIntroSession() {
-    if (introSession) {
-        introSession.classList.add("is-hidden");
+    const el = document.getElementById("intro-session");
+    if (el) {
+        el.classList.add("is-hidden");
     }
 }
 

@@ -19,6 +19,13 @@
 - [infra/init-db.sql](file://infra/init-db.sql)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Enhanced debugging section with comprehensive console logging improvements
+- Added detailed coverage of authentication function logging patterns
+- Updated troubleshooting guide with improved error tracking mechanisms
+- Expanded development workflow documentation with better user experience feedback
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -266,7 +273,7 @@ StoreToken --> Demo
 
 **Section sources**
 - [frontend/config.js:1-18](file://frontend/config.js#L1-L18)
-- [frontend/script.js:1-725](file://frontend/script.js#L1-L725)
+- [frontend/script.js:1-765](file://frontend/script.js#L1-L765)
 - [frontend/style.css:1-800](file://frontend/style.css#L1-L800)
 - [frontend/index.html:1-222](file://frontend/index.html#L1-L222)
 
@@ -305,8 +312,6 @@ WR -.register.-> CS
 - Frontend responsiveness: Avoid blocking UI during network calls; debounce or batch requests where appropriate
 - Logging: Keep worker logs minimal and structured for observability without impacting throughput
 
-[No sources needed since this section provides general guidance]
-
 ## Troubleshooting Guide
 Common issues and remedies:
 - Services fail to start due to missing environment variables:
@@ -319,6 +324,9 @@ Common issues and remedies:
   - Use local demo mode by appending ?local=1 to bypass remote auth
 - Service discovery:
   - Check Consul UI for registered services and health statuses
+- **Enhanced Debugging**: Use comprehensive console logging to track authentication flows and user experience issues
+
+**Updated** Enhanced debugging capabilities now provide detailed logging for authentication functions, session validation, and user interaction flows.
 
 **Section sources**
 - [services/auth-service/src/index.js:10-11](file://services/auth-service/src/index.js#L10-L11)
@@ -340,8 +348,6 @@ Review standards:
 - Ensure code clarity, maintainability, and adherence to existing patterns
 - Verify environment variables and secrets are not committed
 - Confirm Docker Compose builds and runs all services successfully
-
-[No sources needed since this section provides general guidance]
 
 ## Build and Environment Setup
 Local setup steps:
@@ -378,10 +384,12 @@ Recommended approaches:
   - Confirm Consul service registration and health checks
 - Database migration tests:
   - Ensure init-db.sql and service migrations create expected tables and indexes
+- **Enhanced Debugging Tests**: Leverage comprehensive console logging to validate authentication flows and user experience scenarios
 
-[No sources needed since this section provides general guidance]
+**Updated** Enhanced debugging capabilities enable detailed testing of authentication flows, session management, and user interaction patterns through comprehensive console logging.
 
 ## Debugging Approaches
+- **Enhanced Console Logging**: Comprehensive logging added to authentication functions for better error tracking and user experience feedback
 - Observe logs:
   - docker compose logs -f <service>
 - Inspect service health:
@@ -391,6 +399,9 @@ Recommended approaches:
 - Frontend debugging:
   - Check API base URL resolution and token storage
   - Use browser devtools to monitor network requests and responses
+  - Leverage enhanced console logging for authentication flows
+
+**Updated** Enhanced debugging practices now include comprehensive console logging for authentication functions, session validation, and user interaction flows.
 
 **Section sources**
 - [services/auth-service/src/index.js:114-117](file://services/auth-service/src/index.js#L114-L117)
@@ -411,8 +422,9 @@ Recommended approaches:
 - Scalability:
   - Scale services independently based on load
   - Use durable queues and acknowledgments in RabbitMQ
+- **Enhanced Debugging**: Implement comprehensive logging patterns for authentication flows, session management, and user experience feedback
 
-[No sources needed since this section provides general guidance]
+**Updated** Enhanced debugging practices provide comprehensive logging patterns for authentication flows, session management, and user experience feedback mechanisms.
 
 ## Conclusion
-This guide outlines how to develop, test, and extend SignVue’s microservices locally. By following the setup, workflow, and best practices described here, contributors can confidently add new features, integrate additional services, and maintain high code quality.
+This guide outlines how to develop, test, and extend SignVue's microservices locally. By following the setup, workflow, and best practices described here, contributors can confidently add new features, integrate additional services, and maintain high code quality. The enhanced debugging capabilities with comprehensive console logging provide improved error tracking and user experience feedback mechanisms for better development workflow.
