@@ -458,8 +458,13 @@ function stopCamera() {
 }
 
 function showIntroSession() {
-    if (introSession) {
-        introSession.classList.remove("is-hidden");
+    const el = document.getElementById("intro-session");
+    console.log("[showIntroSession] Element:", el);
+    if (el) {
+        el.classList.remove("is-hidden");
+        console.log("[showIntroSession] Class removed");
+    } else {
+        console.warn("[showIntroSession] Element not found!");
     }
 }
 
@@ -470,6 +475,7 @@ function hideIntroSession() {
 }
 
 function tryDemoFromLink() {
+    console.log("[tryDemoFromLink] Called, isLoggedIn:", isLoggedIn());
     if (!isLoggedIn()) {
         openAuthModal("login", "Connectez-vous pour accéder à la démo.");
         return;
