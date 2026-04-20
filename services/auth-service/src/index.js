@@ -270,3 +270,4 @@ initMailer().then(() => {
         console.log(`[auth-service] running on port ${PORT}`);
     });
 });
+
