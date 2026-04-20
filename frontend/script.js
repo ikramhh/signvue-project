@@ -160,17 +160,13 @@ async function apiRegister(email, password) {
 
     const data = await r.json().catch(() => ({}));
 
-    //  si erreur serveur
     if (!r.ok) {
-        return {
-            ok: false,
-            message: data.message || "Erreur inscription"
-        };
+        return { ok: false, message: data.message || "Erreur inscription" };
     }
 
-    // ✔ succès
-    return {
-        ok: true,
+    // IMPORTANT : ne ferme pas sans message
+    return { 
+        ok: true, 
         message: data.message || "Inscription réussie"
     };
 }
