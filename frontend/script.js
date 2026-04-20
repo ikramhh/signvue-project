@@ -37,9 +37,6 @@ const video = document.getElementById("video");
 const output = document.getElementById("output");
 const placeholder = document.getElementById("video-placeholder");
 const playFab = document.getElementById("play-fab");
-const stopFab = document.getElementById("stop-fab");
-const introSession = document.getElementById("intro-session");
-const btnStartDemo = document.getElementById("btn-start-demo");
 
 const authModal = document.getElementById("auth-modal");
 const authBackdrop = document.getElementById("auth-modal-backdrop");
@@ -438,7 +435,6 @@ function startCamera() {
             video.classList.add("is-active");
             if (placeholder) placeholder.classList.add("is-hidden");
             if (playFab) playFab.classList.add("is-hidden");
-            if (stopFab) stopFab.classList.remove("is-hidden");
             // Démarrer la vidéo explicitement
             video.play().catch(() => {});
             startSimulation();
@@ -454,32 +450,6 @@ function startCamera() {
             console.error("Camera error:", err);
             if (output) output.textContent = "Accès caméra refusé";
         });
-}
-
-function stopCamera() {
-    clearSimulation();
-    if (video?.srcObject) {
-        video.srcObject.getTracks().forEach((t) => t.stop());
-        video.srcObject = null;
-    }
-    video?.classList.remove("is-active");
-    if (placeholder) placeholder.classList.remove("is-hidden");
-    if (playFab) playFab.classList.remove("is-hidden");
-    if (stopFab) stopFab.classList.add("is-hidden");
-    if (output) output.textContent = "—";
-}
-
-function showIntroSession() {
-    if (introSession) {
-        introSession.classList.remove("is-hidden");
-        introSession.scrollIntoView({ behavior: "smooth" });
-    }
-}
-
-function hideIntroSession() {
-    if (introSession) {
-        introSession.classList.add("is-hidden");
-    }
 }
 
 function tryDemoFromLink() {
