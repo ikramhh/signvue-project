@@ -25,15 +25,11 @@ app.get("/health", async (_req, res) => {
 
 /* ================= REGISTER ================= */
 app.post("/auth/register", async (req, res) => {
-    const { email, password } = req.body || {};
-
-    if (!email || !password) {
-        return res.status(400).json({ message: "Champs manquants" });
-    }
+    const { email, password } = req.body;
 
     try {
         const exist = await pool.query(
-            "SELECT id FROM users WHERE email=$1",
+            "SELECT * FROM users WHERE email=$1",
             [email]
         );
 
@@ -41,63 +37,18 @@ app.post("/auth/register", async (req, res) => {
             return res.status(409).json({ message: "Email déjà utilisé" });
         }
 
-        const hashed = await bcrypt.hash(password, 10);
-        const id = uuidv4();
+        const hash = await bcrypt.hash(password, 10);
 
         await pool.query(
-            `INSERT INTO users (id, email, password)
-             VALUES ($1,$2,$3)`,
-            [id, email, hashed]
+            "INSERT INTO users (id, email, password_hash) VALUES (gen_random_uuid(), $1, $2)",
+            [email, hash]
         );
 
-        res.json({
-            message: "Inscription réussie",
-            userId: id,
-            email
-        });
+        return res.status(200).json({ message: "Inscription réussie" });
 
     } catch (err) {
-        console.error("[REGISTER ERROR]", err);
-        res.status(500).json({ message: "Erreur serveur" });
-    }
-});
-
-/* ================= LOGIN ================= */
-app.post("/auth/login", async (req, res) => {
-    const { email, password } = req.body || {};
-
-    try {
-        const { rows } = await pool.query(
-            "SELECT * FROM users WHERE email=$1",
-            [email]
-        );
-
-        if (rows.length === 0) {
-            return res.status(401).json({ message: "Utilisateur introuvable" });
-        }
-
-        const user = rows[0];
-
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) {
-            return res.status(401).json({ message: "Mot de passe incorrect" });
-        }
-
-        const token = jwt.sign(
-            {
-                sub: user.email,
-                uid: user.id,
-                role: "USER"
-            },
-            JWT_SECRET,
-            { expiresIn: "1h" }
-        );
-
-        res.json({ token, user: { email: user.email } });
-
-    } catch (err) {
-        console.error("[LOGIN ERROR]", err);
-        res.status(500).json({ message: "Erreur serveur" });
+        console.error(err);
+        return res.status(500).json({ message: "Erreur serveur" });
     }
 });
 
