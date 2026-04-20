@@ -30,11 +30,11 @@ async function waitForDb(maxAttempts = 30, delayMs = 1000) {
 async function migrate() {
     await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
-            id UUID PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        );
+           id TEXT PRIMARY KEY,
+           email TEXT UNIQUE NOT NULL,
+           password TEXT NOT NULL,
+           created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
 
     await pool.query(`
