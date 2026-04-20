@@ -40,7 +40,7 @@ app.post("/auth/register", async (req, res) => {
         const hash = await bcrypt.hash(password, 10);
 
         await pool.query(
-            "INSERT INTO users (id, email, password_hash) VALUES (gen_random_uuid(), $1, $2)",
+            "INSERT INTO users (id, email, password) VALUES (gen_random_uuid(), $1, $2)",
             [email, hash]
         );
 
