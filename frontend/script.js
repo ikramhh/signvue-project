@@ -373,6 +373,11 @@ function renderAuthChrome() {
         btn.style.display = logged ? "none" : "";
     });
 
+    // Afficher/masquer le bouton Introduction dans le header
+    document.querySelectorAll('.nav-item-intro').forEach((btn) => {
+        btn.classList.toggle("is-hidden", !logged);
+    });
+
     document.querySelectorAll(".js-demo-link").forEach((el) => {
         el.classList.toggle("btn-demo-locked", !logged);
         el.setAttribute("aria-disabled", logged ? "false" : "true");

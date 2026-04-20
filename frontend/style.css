@@ -380,6 +380,20 @@ a {
     color: var(--navy);
 }
 
+.nav-item-intro {
+    background: rgba(91, 45, 140, 0.12);
+    color: var(--navy);
+    font-weight: 600;
+}
+
+.nav-item-intro:hover {
+    background: rgba(91, 45, 140, 0.2);
+}
+
+.nav-item-intro.is-hidden {
+    display: none !important;
+}
+
 .chev {
     width: 0.35rem;
     height: 0.35rem;

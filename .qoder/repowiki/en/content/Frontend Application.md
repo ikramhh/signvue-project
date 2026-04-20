@@ -8,16 +8,17 @@
 - [config.js](file://frontend/config.js)
 - [docker-compose.yml](file://docker-compose.yml)
 - [README.md](file://README.md)
-- [auth-service/src/index.js](file://services/auth-service/src/index.js)
-- [api-service/src/index.js](file://services/api-service/src/index.js)
+- [services/auth-service/src/index.js](file://services/auth-service/src/index.js)
+- [services/api-service/src/index.js](file://services/api-service/src/index.js)
 - [infra/init-db.sql](file://infra/init-db.sql)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive introduction session system with tutorial guidance
-- Enhanced camera control with stop functionality for improved user experience
+- Enhanced introduction session functionality with improved user experience and automatic display logic
+- Added smooth scrolling navigation from introduction session to demo section
 - Improved authentication flow with automatic session management
+- Enhanced camera control with stop functionality for improved user experience
 - Updated demo camera interface with intro-session panel and stop-fab button
 - Enhanced user onboarding experience with guided tutorial
 
@@ -36,7 +37,7 @@
 ## Introduction
 This document describes the Frontend Single Page Application for SignVue, focusing on the web UI architecture, authentication flow, webcam integration for sign language detection, and the demo interface. It explains state management patterns, user interaction handling, responsive design, backend integration via Traefik routing, localStorage usage for offline functionality, and configuration management. It also covers browser compatibility, accessibility considerations, and performance optimization techniques.
 
-**Updated** Added comprehensive introduction session system with tutorial guidance, enhanced camera control with stop functionality, and improved user onboarding experience.
+**Updated** Enhanced introduction session functionality with improved user experience, automatic display logic when users are logged in, and smooth scrolling navigation from introduction session to demo section.
 
 ## Project Structure
 The frontend is a static SPA served by Nginx and integrated with a microservices backend orchestrated by Traefik. The SPA consists of:
@@ -96,11 +97,11 @@ API --> WORKER
 
 Key responsibilities:
 - script.js orchestrates UI state, user actions, intro-session flow, and API interactions
-- style.css defines responsive layouts, animations, accessibility attributes, and new intro-session/styling
+- style.css defines responsive layouts, animations, accessibility attributes, and new intro-session/stopping styling
 - config.js resolves the API base URL from meta tag or global override
 - index.html provides the DOM structure with intro-session panel and stop-fab button
 
-**Updated** Added intro-session panel with instructional content and stop-fab button for camera termination.
+**Updated** Enhanced introduction session panel with automatic display logic and smooth scrolling navigation.
 
 **Section sources**
 - [script.js:169-174](file://frontend/script.js#L169-L174)
@@ -164,23 +165,23 @@ UI->>UI : Stop Camera and Clear Simulation
 
 ## Detailed Component Analysis
 
-### Introduction Session System
-The SPA now includes a comprehensive introduction session system designed to guide users through the camera setup process:
-- Intro session panel appears before camera access
-- Provides step-by-step instructions for optimal camera positioning
-- Includes practical tips for lighting, distance, and clothing considerations
-- Features a "Suivant" (Next) button to progress to the demo camera
-- Smooth scrolling transition to the demo section
+### Enhanced Introduction Session System
+The SPA now includes a comprehensive introduction session system designed to guide users through the camera setup process with improved user experience:
+- Auto-display logic: Introduction session automatically appears when users are logged in
+- Step-by-step instructions for optimal camera positioning with practical tips for lighting, distance, and clothing considerations
+- "Suivant" (Next) button to progress to the demo camera with smooth scrolling transition
+- Automatic scrolling to demo section after clicking next
+- Responsive design with grid layout for optimal mobile experience
 
 ```mermaid
 flowchart TD
 Start(["User clicks Demo"]) --> CheckAuth{"Authenticated?"}
 CheckAuth --> |No| OpenAuth["Open Auth Modal"]
-CheckAuth --> |Yes| ShowIntro["Show Intro Session Panel"]
+CheckAuth --> |Yes| ShowIntro["Auto-show Intro Session Panel"]
 ShowIntro --> UserTips["Display camera setup tips"]
 UserTips --> NextButton["Click Next button"]
 NextButton --> HideIntro["Hide Intro Session"]
-HideIntro --> ScrollDemo["Scroll to Demo Section"]
+HideIntro --> ScrollDemo["Smooth scroll to Demo Section"]
 ScrollDemo --> StartCamera["Start Camera with Stop-FAB"]
 ```
 
@@ -319,7 +320,7 @@ SendReq --> Output["Update #output text"]
 - Tokens: JWT stored in localStorage for server-backed mode
 - UI state: toggled via CSS classes and aria-* attributes for accessibility
 - Feature detail panels: controlled by dataset and selection state
-- Intro-session state: managed separately from main UI state
+- Intro-session state: managed separately from main UI state with automatic display logic
 - Reduced motion: respects user preference to disable animations
 
 ```mermaid
@@ -453,7 +454,7 @@ StopFab["Stop-FAB Button"] --> SPA
 - Camera optimization: explicit play() and track stopping on logout to release resources
 - Intro-session optimization: smooth scrolling and conditional rendering based on user state
 
-**Updated** Added intro-session optimization and stop-fab button performance considerations.
+**Updated** Enhanced introduction session optimization with automatic display logic and smooth scrolling navigation.
 
 [No sources needed since this section provides general guidance]
 
@@ -467,7 +468,7 @@ Common issues and resolutions:
 - Intro-session not appearing: ensure user is authenticated and JavaScript is enabled
 - Stop-fab not working: check browser compatibility with mediaDevices API and camera permissions
 
-**Updated** Added troubleshooting for intro-session and stop-fab functionality.
+**Updated** Enhanced troubleshooting for introduction session and stop-fab functionality.
 
 **Section sources**
 - [script.js:437-440](file://frontend/script.js#L437-L440)
@@ -478,7 +479,7 @@ Common issues and resolutions:
 ## Conclusion
 The SignVue frontend delivers a responsive, accessible SPA with robust authentication, seamless webcam integration, and a simulated recognition pipeline. Its modular architecture, clear state management, and Traefik-driven routing enable easy deployment and maintenance across environments. The addition of the comprehensive introduction session system, enhanced camera control with stop functionality, and improved user onboarding experience significantly enhances the overall user experience. The combination of server-backed JWT and local storage modes provides flexibility for development and production scenarios.
 
-**Updated** Enhanced conclusion to reflect the new introduction session system and improved user experience features.
+**Updated** Enhanced conclusion to reflect the new introduction session system with automatic display logic and improved user experience features.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
