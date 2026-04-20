@@ -330,8 +330,12 @@ function toggleUserAccountPanel() {
     const open = userAccountPanel.hidden;
     userAccountPanel.hidden = !open;
     userAccountBtn.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open && userPanelEmail) {
-        userPanelEmail.textContent = getSessionEmail() || "—";
+    if (open) {
+        // Mettre à jour l'email dans le panneau
+        const email = getSessionEmail();
+        if (userPanelEmail) {
+            userPanelEmail.textContent = email || "—";
+        }
         // Fetch and display user role
         if (userPanelRole) {
             userPanelRole.textContent = "Chargement...";
@@ -353,6 +357,11 @@ function renderAuthChrome() {
     if (headerUserBar) {
         headerUserBar.classList.toggle("is-hidden", !logged);
     }
+
+    // Cacher tous les boutons de connexion dans la page quand connecté
+    document.querySelectorAll('.js-open-auth').forEach((btn) => {
+        btn.style.display = logged ? "none" : "";
+    });
 
     document.querySelectorAll(".js-demo-link").forEach((el) => {
         el.classList.toggle("btn-demo-locked", !logged);
@@ -414,6 +423,8 @@ function startCamera() {
             video.classList.add("is-active");
             if (placeholder) placeholder.classList.add("is-hidden");
             if (playFab) playFab.classList.add("is-hidden");
+            // Démarrer la vidéo explicitement
+            video.play().catch(() => {});
             startSimulation();
             if (!USE_LOCAL_AUTH) {
                 apiFetch("/api/interpretation-requests", {
@@ -423,7 +434,8 @@ function startCamera() {
                 }).catch(() => {});
             }
         })
-        .catch(() => {
+        .catch((err) => {
+            console.error("Camera error:", err);
             if (output) output.textContent = "Accès caméra refusé";
         });
 }

@@ -848,6 +848,7 @@ a {
     display: block;
     opacity: 0;
     transition: opacity 0.35s ease;
+    transform: scaleX(-1); /* Miroir pour une meilleure expérience utilisateur */
 }
 
 #video.is-active {
