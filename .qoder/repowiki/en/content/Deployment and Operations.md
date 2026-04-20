@@ -3,6 +3,8 @@
 <cite>
 **Referenced Files in This Document**
 - [README.md](file://README.md)
+- [DEPLOY.md](file://DEPLOY.md)
+- [deploy.bat](file://deploy.bat)
 - [docker-compose.yml](file://docker-compose.yml)
 - [services/api-service/src/index.js](file://services/api-service/src/index.js)
 - [services/api-service/src/db.js](file://services/api-service/src/db.js)
@@ -17,8 +19,19 @@
 - [services/worker-service/package.json](file://services/worker-service/package.json)
 - [infra/init-db.sql](file://infra/init-db.sql)
 - [frontend/config.js](file://frontend/config.js)
+- [frontend/index.html](file://frontend/index.html)
 - [frontend/script.js](file://frontend/script.js)
+- [frontend/style.css](file://frontend/style.css)
+- [frontend/verify-email.html](file://frontend/verify-email.html)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive deployment documentation section covering deployment procedures and email configuration
+- Added automated deployment script documentation for Windows environments
+- Updated authentication service documentation to include email verification workflow
+- Enhanced frontend documentation to cover new introduction session and camera controls
+- Updated database schema documentation to reflect email verification fields
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -40,7 +53,8 @@
 17. [Troubleshooting Guide](#troubleshooting-guide)
 18. [Performance Optimization](#performance-optimization)
 19. [Maintenance Procedures](#maintenance-procedures)
-20. [Conclusion](#conclusion)
+20. [Deployment and Operations](#deployment-and-operations)
+21. [Conclusion](#conclusion)
 
 ## Introduction
 This document provides a comprehensive deployment and operations guide for the SignVue microservices system. It covers production deployment strategies, environment configuration management, scaling considerations, monitoring and logging, health checks, service discovery, security hardening, backup and disaster recovery, CI/CD integration, operational runbooks, alerting, and incident response procedures. The guide leverages the existing Docker Compose setup and service implementations to define repeatable, reliable, and secure operations for both development and production environments.
@@ -99,15 +113,16 @@ frontend --> net
 - Consul: Service registry and discovery; services register themselves with HTTP health checks.
 - RabbitMQ: Message broker for asynchronous processing; worker-service consumes a durable queue.
 - PostgreSQL: Relational database storing users, sessions, and translation records.
-- auth-service: JWT-based authentication, registration, login, and verification endpoints.
+- auth-service: JWT-based authentication, registration, login, verification endpoints, and email verification workflow.
 - api-service: Business CRUD endpoints for sessions, JWT verification, and publishing interpretation requests to RabbitMQ.
 - worker-service: Consumes messages from the RabbitMQ queue and logs processing events.
-- frontend: Static Nginx serving the SPA; communicates with backend APIs.
+- frontend: Static Nginx serving the SPA with introduction session, camera controls, and email verification page.
 
 Key runtime characteristics:
 - Services expose health endpoints for readiness/liveness.
 - Database connections are managed via connection pools with startup waits and migrations.
 - JWT secrets are shared between auth-service and api-service.
+- Email verification system with token-based validation and resend functionality.
 
 **Section sources**
 - [README.md:7-31](file://README.md#L7-L31)
@@ -119,7 +134,7 @@ Key runtime characteristics:
 - [infra/init-db.sql:1-44](file://infra/init-db.sql#L1-L44)
 
 ## Architecture Overview
-The system routes external traffic through Traefik to services, with Consul managing service registration and health checks. Asynchronous workloads are decoupled via RabbitMQ, while PostgreSQL persists state. The frontend proxies API calls through Traefik to the appropriate backend service.
+The system routes external traffic through Traefik to services, with Consul managing service registration and health checks. Asynchronous workloads are decoupled via RabbitMQ, while PostgreSQL persists state. The frontend proxies API calls through Traefik to the appropriate backend service. The email verification workflow adds an additional layer of user validation before authentication.
 
 ```mermaid
 sequenceDiagram
@@ -130,10 +145,20 @@ participant API as "api-service"
 participant DB as "PostgreSQL"
 participant MQ as "RabbitMQ"
 participant Worker as "worker-service"
+Client->>Traefik : "POST /auth/register"
+Traefik->>Auth : "Route to /auth"
+Auth->>DB : "Insert user with verify_token"
+Auth->>Auth : "Send verification email"
+Auth-->>Traefik : "Registration initiated"
+Traefik-->>Client : "Registration message"
+Client->>Traefik : "GET /auth/verify-email?token=..."
+Traefik->>Auth : "Verify token"
+Auth->>DB : "Mark user as verified"
+Auth-->>Traefik : "Verification success"
+Traefik-->>Client : "Verification confirmed"
 Client->>Traefik : "POST /auth/login"
 Traefik->>Auth : "Route to /auth"
-Auth->>DB : "Verify credentials"
-DB-->>Auth : "User record"
+Auth->>DB : "Verify credentials and email status"
 Auth-->>Traefik : "JWT token"
 Traefik-->>Client : "200 OK with token"
 Client->>Traefik : "POST /api/interpretation-requests"
@@ -155,21 +180,26 @@ Worker-->>Worker : "Log processing"
 Responsibilities:
 - Registration and login with hashed passwords
 - JWT issuance with roles
-- Verification endpoint for tokens
+- Email verification workflow with token-based validation
+- Resend verification functionality
 - Health endpoint for Consul integration
 
 Operational notes:
-- Uses PostgreSQL via connection pool
+- Uses PostgreSQL via connection pool with email verification fields
+- Supports both real SMTP services and development testing via Ethereal
 - Exposes a simple health endpoint suitable for Consul checks
 - No explicit CORS configuration; defaults apply
 
 ```mermaid
 flowchart TD
 Start(["Startup"]) --> InitDB["Initialize DB pool"]
-InitDB --> Listen["Listen on configured port"]
+InitDB --> InitMailer["Initialize email transport"]
+InitMailer --> Listen["Listen on configured port"]
 Listen --> Health["Expose /health"]
 Listen --> AuthRoutes["Expose /auth endpoints"]
 AuthRoutes --> Verify["Verify JWT on /auth/me"]
+AuthRoutes --> VerifyEmail["Handle email verification"]
+AuthRoutes --> ResendEmail["Resend verification email"]
 ```
 
 **Diagram sources**
@@ -177,10 +207,10 @@ AuthRoutes --> Verify["Verify JWT on /auth/me"]
 - [services/auth-service/src/db.js:1-13](file://services/auth-service/src/db.js#L1-L13)
 
 **Section sources**
-- [services/auth-service/src/index.js:1-124](file://services/auth-service/src/index.js#L1-L124)
+- [services/auth-service/src/index.js:1-273](file://services/auth-service/src/index.js#L1-L273)
 - [services/auth-service/src/db.js:1-13](file://services/auth-service/src/db.js#L1-L13)
 - [services/auth-service/Dockerfile:1-8](file://services/auth-service/Dockerfile#L1-L8)
-- [services/auth-service/package.json:1-18](file://services/auth-service/package.json#L1-L18)
+- [services/auth-service/package.json:1-19](file://services/auth-service/package.json#L1-L19)
 
 ### api-service
 Responsibilities:
@@ -300,6 +330,11 @@ frontend["Nginx (frontend)"] --> traefik
 - Service-specific:
   - PORT: Listening port for each service
   - CONSUL_HOST: Service discovery host for worker-service
+  - SMTP_HOST: Email server host for auth-service
+  - SMTP_PORT: Email server port for auth-service
+  - SMTP_USER: Email authentication username for auth-service
+  - SMTP_PASS: Email authentication password for auth-service
+  - FRONTEND_URL: Frontend base URL for email verification links
 - Compose overrides: Use environment files or override files for dev vs prod.
 
 **Section sources**
@@ -370,6 +405,10 @@ Status --> |No| Retry["Retry until healthy"]
   - Rate-limit authentication endpoints to prevent brute force
 - Secrets injection:
   - Mount secrets as files or use secret managers; avoid embedding in images
+- Email security:
+  - Use encrypted SMTP connections (STARTTLS)
+  - Implement rate limiting for verification emails
+  - Validate email domains for registration
 
 **Section sources**
 - [README.md:92-95](file://README.md#L92-L95)
@@ -413,6 +452,7 @@ Status --> |No| Retry["Retry until healthy"]
 - Communication testing:
   - Verify JWT issuance and validation
   - Publish an interpretation request and confirm worker logs
+  - Test email verification workflow
 - Recovery steps:
   - Restart unhealthy services
   - Re-register services with Consul if needed
@@ -426,6 +466,7 @@ Status --> |No| Retry["Retry until healthy"]
 - Alerts:
   - Service health failures, queue backlog growth, DB connection errors
   - Frontend error rate and latency spikes
+  - Email delivery failures and verification token expiration
 - Escalation:
   - On-call rotation with defined escalation paths
 - Postmortems:
@@ -443,6 +484,10 @@ Common issues and resolutions:
   - Validate RABBITMQ_URL and queue existence
 - Frontend API base URL:
   - Ensure frontend resolves to the correct backend base URL
+- Email verification failures:
+  - Check SMTP configuration and credentials
+  - Verify email transport initialization
+  - Test token validity and expiration
 
 **Section sources**
 - [services/api-service/src/db.js:14-27](file://services/api-service/src/db.js#L14-L27)
@@ -461,6 +506,9 @@ Common issues and resolutions:
   - Cache frequently accessed user metadata
 - CDN and static assets:
   - Serve frontend via CDN for global performance
+- Email delivery:
+  - Use dedicated SMTP providers for production
+  - Implement email delivery retry mechanisms
 
 [No sources needed since this section provides general guidance]
 
@@ -473,8 +521,130 @@ Common issues and resolutions:
   - Rotate secrets and certificates
 - Capacity planning:
   - Monitor resource usage and plan growth
+- Email system maintenance:
+  - Monitor email delivery rates and bounce handling
+  - Update SMTP credentials and configurations as needed
 
 [No sources needed since this section provides general guidance]
 
+## Deployment and Operations
+
+### Deployment Documentation
+The project now includes comprehensive deployment documentation covering the complete deployment lifecycle for the SignVue microservices system.
+
+**Updated** Added comprehensive deployment documentation with step-by-step instructions for dependency installation, database migration options, service restart procedures, and production email configuration.
+
+**Section sources**
+- [DEPLOY.md:1-94](file://DEPLOY.md#L1-L94)
+
+### Automated Deployment Script
+Windows users can leverage the automated deployment script for streamlined deployment processes.
+
+**Updated** Added automated deployment script (deploy.bat) for Windows environments that automates the complete deployment workflow.
+
+The deployment script provides four main stages:
+1. **Install Dependencies**: Installs npm packages for the auth-service
+2. **Stop Services**: Gracefully shuts down existing services
+3. **Start Services**: Builds and starts all services in detached mode
+4. **Verify Deployment**: Displays service status for verification
+
+**Section sources**
+- [deploy.bat:1-32](file://deploy.bat#L1-L32)
+
+### Email Verification System
+The authentication service now includes a comprehensive email verification workflow to ensure user email addresses are valid before allowing login access.
+
+**Updated** Enhanced authentication service with email verification capabilities including token-based validation and resend functionality.
+
+Key email verification features:
+- **Registration Workflow**: Users receive verification emails upon registration
+- **Token Validation**: Secure token-based email verification process
+- **Resend Functionality**: Ability to resend verification emails
+- **Development Testing**: Uses Ethereal SMTP for development testing
+- **Production Ready**: Supports real SMTP providers like SendGrid, Mailgun, AWS SES
+
+Database schema enhancements:
+- `verified` boolean field for email verification status
+- `verify_token` field for token-based validation
+- Automatic cleanup of expired verification tokens
+
+**Section sources**
+- [services/auth-service/src/index.js:49-78](file://services/auth-service/src/index.js#L49-L78)
+- [services/auth-service/src/index.js:129-158](file://services/auth-service/src/index.js#L129-L158)
+- [services/auth-service/src/index.js:209-240](file://services/auth-service/src/index.js#L209-L240)
+- [infra/init-db.sql:3-11](file://infra/init-db.sql#L3-L11)
+
+### Frontend Enhancements
+The frontend has been enhanced with new user experience features including an introduction session and improved camera controls.
+
+**Updated** Added introduction session with camera demonstration, stop camera button, and navigation improvements.
+
+Frontend enhancements:
+- **Introduction Session**: Dedicated section with sign8.jpg image and camera usage instructions
+- **Stop Camera Button**: Red stop button appears when camera is active
+- **Navigation Improvements**: Added "Introduction" button to the header navigation
+- **Camera Controls**: Enhanced camera activation/deactivation with proper cleanup
+- **Verification Page**: New verify-email.html page for email verification workflow
+
+**Section sources**
+- [frontend/index.html:146-164](file://frontend/index.html#L146-L164)
+- [frontend/index.html:172-191](file://frontend/index.html#L172-L191)
+- [frontend/script.js:412-458](file://frontend/script.js#L412-L458)
+- [frontend/script.js:619-624](file://frontend/script.js#L619-L624)
+- [frontend/verify-email.html:1-148](file://frontend/verify-email.html#L1-L148)
+
+### Database Migration Options
+The deployment guide provides flexible database migration options to accommodate different deployment scenarios.
+
+**Updated** Added comprehensive database migration options covering both destructive and non-destructive approaches.
+
+Migration options:
+- **Option A (Destructive)**: Complete database reset with volume removal
+- **Option B (Non-destructive)**: Manual schema updates preserving existing data
+- **Manual Migration**: SQL commands for adding verification fields to existing users table
+
+**Section sources**
+- [DEPLOY.md:31-44](file://DEPLOY.md#L31-L44)
+
+### Production Email Configuration
+The deployment guide includes detailed instructions for configuring production email services with recommended providers.
+
+**Updated** Added comprehensive production email configuration guide with SMTP settings and provider recommendations.
+
+Recommended email providers:
+- **SendGrid**: Free tier up to 100 emails/day
+- **Mailgun**: Free tier up to 5000 emails/month  
+- **AWS SES**: Cost-effective enterprise solution
+
+Configuration requirements:
+- SMTP_HOST: Email server hostname
+- SMTP_PORT: Email server port (typically 587)
+- SMTP_USER: Email authentication username
+- SMTP_PASS: Email authentication password
+- FRONTEND_URL: Base URL for verification email links
+
+**Section sources**
+- [DEPLOY.md:56-74](file://DEPLOY.md#L56-L74)
+
+### Development vs Production Differences
+The deployment system supports both development and production environments with different email handling approaches.
+
+**Updated** Enhanced deployment system to support development testing with Ethereal SMTP and production with real email providers.
+
+Development features:
+- **Ethereal Testing**: Automatic creation of test email accounts for development
+- **Preview URLs**: Access to email preview functionality during development
+- **Local Testing**: Full email verification workflow without real email delivery
+
+Production features:
+- **Real SMTP Integration**: Direct integration with production email providers
+- **Secure Credentials**: Environment-based credential management
+- **Reliable Delivery**: Production-grade email delivery with proper error handling
+
+**Section sources**
+- [services/auth-service/src/index.js:22-47](file://services/auth-service/src/index.js#L22-L47)
+
 ## Conclusion
 This guide consolidates production-grade deployment and operations practices for the SignVue microservices system. By leveraging the existing Compose setup, implementing robust configuration management, health checks, and service discovery, and adopting security hardening, monitoring, and CI/CD practices, teams can reliably operate the system at scale with predictable outcomes.
+
+The recent additions to the deployment system, including comprehensive documentation, automated deployment scripts, email verification workflow, and enhanced frontend features, provide a complete solution for both development and production environments. These enhancements ensure proper user validation, streamlined deployment processes, and robust operational procedures for the SignVue platform.
