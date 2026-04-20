@@ -1,3 +1,7 @@
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const cors = require("cors");
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
@@ -91,7 +95,99 @@ app.get("/health", async (_req, res) => {
         res.status(500).json({ status: "down" });
     }
 });
+/* ================= AUTH ================= */
 
+/* REGISTER */
+app.post("/auth/register", async (req, res) => {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+        return res.status(400).json({ message: "Champs manquants" });
+    }
+
+    try {
+        const exist = await pool.query(
+            "SELECT * FROM users WHERE email = $1",
+            [email]
+        );
+
+        if (exist.rows.length > 0) {
+            return res.status(409).json({ message: "Email déjà utilisé" });
+        }
+
+        const hash = await bcrypt.hash(password, 10);
+
+        await pool.query(
+            `INSERT INTO users (id, email, password)
+             VALUES ($1,$2,$3)`,
+            [uuidv4(), email, hash]
+        );
+
+        res.json({ message: "Inscription réussie" });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Erreur serveur" });
+    }
+});
+
+
+/* LOGIN */
+app.post("/auth/login", async (req, res) => {
+    const { email, password } = req.body || {};
+
+    try {
+        const { rows } = await pool.query(
+            "SELECT * FROM users WHERE email=$1",
+            [email]
+        );
+
+        if (rows.length === 0) {
+            return res.status(401).json({ message: "Utilisateur introuvable" });
+        }
+
+        const user = rows[0];
+
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) {
+            return res.status(401).json({ message: "Mot de passe incorrect" });
+        }
+
+        const token = jwt.sign(
+            {
+                sub: user.email,
+                uid: user.id,
+                role: "USER"
+            },
+            JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
+        res.json({ token });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Erreur serveur" });
+    }
+});
+
+
+/* VERIFY */
+app.get("/auth/verify", (req, res) => {
+    const h = req.headers.authorization;
+
+    if (!h?.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "No token" });
+    }
+
+    try {
+        const token = h.split(" ")[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        res.json(decoded);
+    } catch {
+        res.status(401).json({ message: "Token invalide" });
+    }
+});
 /* ================= TRANSLATIONS ================= */
 app.post("/translations", async (req, res) => {
     const { sourceText, targetText } = req.body || {};
