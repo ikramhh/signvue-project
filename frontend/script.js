@@ -354,6 +354,9 @@ function renderAuthChrome() {
         closeUserAccountPanel();
         hideIntroSession();
         stopCamera();
+    } else {
+        // Afficher la session d'introduction quand connecté
+        showIntroSession();
     }
     if (userPanelEmail) userPanelEmail.textContent = getSessionEmail() || "—";
 
@@ -479,7 +482,7 @@ function tryDemoFromLink() {
         openAuthModal("login", "Connectez-vous pour accéder à la démo.");
         return;
     }
-    showIntroSession();
+    document.getElementById("intro-session")?.scrollIntoView({ behavior: "smooth" });
 }
 
 // Event listeners are now attached in bootstrap() function
@@ -615,7 +618,6 @@ async function bootstrap() {
 
         if (btnStartDemo) {
             btnStartDemo.addEventListener("click", () => {
-                hideIntroSession();
                 document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" });
                 window.setTimeout(() => startCamera(), 450);
             });
