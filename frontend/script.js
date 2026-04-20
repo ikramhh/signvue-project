@@ -95,6 +95,12 @@ function getAccounts() {
     try {
         const raw = localStorage.getItem(STORAGE_ACCOUNTS);
         const list = raw ? JSON.parse(raw) : [];
+        // Comptes par défaut pour la démo en mode local
+        if (USE_LOCAL_AUTH && list.length === 0) {
+            list.push({ email: "demo@example.com", password: "demo123" });
+            list.push({ email: "admin@example.com", password: "admin123" });
+            saveAccounts(list);
+        }
         return Array.isArray(list) ? list : [];
     } catch {
         return [];
@@ -357,9 +363,6 @@ function renderAuthChrome() {
             el.setAttribute("title", "Connexion requise pour la démo");
         }
     });
-
-    if (headerBtnAuth) headerBtnAuth.classList.toggle("is-hidden", logged);
-    if (headerUserBar) headerUserBar.classList.toggle("is-hidden", !logged);
 
     if (demoLeadDefault && demoLeadLogged) {
         demoLeadDefault.classList.toggle("is-hidden", logged);
