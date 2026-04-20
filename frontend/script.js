@@ -340,6 +340,14 @@ function renderAuthChrome() {
     if (!logged) closeUserAccountPanel();
     if (userPanelEmail) userPanelEmail.textContent = getSessionEmail() || "—";
 
+    // Gérer l'affichage du bouton de connexion et de la barre utilisateur
+    if (headerBtnAuth) {
+        headerBtnAuth.style.display = logged ? "none" : "inline-block";
+    }
+    if (headerUserBar) {
+        headerUserBar.classList.toggle("is-hidden", !logged);
+    }
+
     document.querySelectorAll(".js-demo-link").forEach((el) => {
         el.classList.toggle("btn-demo-locked", !logged);
         el.setAttribute("aria-disabled", logged ? "false" : "true");
