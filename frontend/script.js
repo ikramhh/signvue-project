@@ -152,20 +152,27 @@ async function apiFetch(path, options = {}) {
 }
 
 async function apiRegister(email, password) {
-    console.log("[apiRegister] Request:", { email, password });
     const r = await fetch(apiUrl("/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
     });
+
     const data = await r.json().catch(() => ({}));
-    console.log("[apiRegister] Response:", { status: r.status, data });
-    if (!r.ok) return { ok: false, message: data.message || "Inscription impossible." };
-    try {
-        localStorage.setItem(STORAGE_TOKEN, data.token);
-    } catch (_) {}
-    setSessionEmail(data.user.email);
-    return { ok: true };
+
+    //  si erreur serveur
+    if (!r.ok) {
+        return {
+            ok: false,
+            message: data.message || "Erreur inscription"
+        };
+    }
+
+    // ✔ succès
+    return {
+        ok: true,
+        message: data.message || "Inscription réussie"
+    };
 }
 
 async function apiLogin(email, password) {
